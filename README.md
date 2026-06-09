@@ -2,7 +2,7 @@
 
 [English](README.md) | [Tiếng Việt](README_vi.md)
 
-[![Go Version](https://img.shields.io/github/go-mod/go-version/dc-ai/dc-ai-api?color=00ADD8&logo=go)](https://golang.org)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/dabeecao/dc-ai-api?color=00ADD8&logo=go)](https://golang.org)
 [![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite)](https://www.sqlite.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 

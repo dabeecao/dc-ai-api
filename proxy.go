@@ -1243,6 +1243,12 @@ func translateModelName(requestedModel string, targetModel string, isNativeGemin
 	if requestedModel == "" || targetModel == "" || strings.EqualFold(requestedModel, targetModel) {
 		return
 	}
+	// For Gemini models, if they normalize to the same clean model name,
+	// do not translate to prevent thought_signature validation errors due to model name mismatches.
+	isGemini := isNativeGemini || strings.Contains(strings.ToLower(requestedModel), "gemini") || strings.Contains(strings.ToLower(targetModel), "gemini")
+	if isGemini && strings.EqualFold(cleanModelName(requestedModel), cleanModelName(targetModel)) {
+		return
+	}
 	if isNativeGemini {
 		reqSub := cleanModelName(requestedModel)
 		tgtSub := cleanModelName(targetModel)

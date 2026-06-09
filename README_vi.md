@@ -11,6 +11,11 @@ Một API Proxy hiệu năng cao, bền bỉ được phát triển bằng **Go*
 > [!NOTE]
 > Tài liệu kỹ thuật chi tiết, ghi chú nhà phát triển, ví dụ tích hợp API và cấu hình reverse proxy (Nginx & Cloudflare) đã được chuyển sang [dev.md](file:///opt/dc-ai-api/dev.md).
 
+<p align="center">
+  <img src="preview/preview.jpg" alt="Admin Dashboard" width="49%" />
+  <img src="preview/preview-2.jpg" alt="Chat Client" width="49%" />
+</p>
+
 ---
 
 ## 🚀 Tính Năng Chính

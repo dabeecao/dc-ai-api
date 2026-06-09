@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -344,6 +345,10 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+	}
+
+	if len(bodyBytes) > 0 && !isNativeGemini {
+		bodyBytes = restoreThoughtSignatures(bodyBytes)
 	}
 
 	// Clean up unsupported schema fields (like enumDescriptions, enum_descriptions, and items in non-arrays) from JSON body if present to prevent Gemini API 400 errors
@@ -735,6 +740,9 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							dataContent = strings.TrimSpace(dataContent)
 							if dataContent != "" && dataContent != "[DONE]" {
 								completionTokens += estimateTokensFromSSELine(dataContent, apiType)
+								if apiType == "openai" {
+									extractAndCacheThoughtSignatures(line)
+								}
 							}
 						}
 					}
@@ -793,6 +801,9 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 				if isDcAIModel && targetModel != "" {
 					respBytes = bytes.ReplaceAll(respBytes, []byte(targetModel), []byte("dc-ai-model"))
+				}
+				if apiType == "openai" {
+					extractAndCacheThoughtSignatures(respBytes)
 				}
 				w.Write(respBytes)
 			} else {
@@ -911,6 +922,10 @@ func sanitizeGeminiPayload(val interface{}) interface{} {
 		// 4. Strip target keys
 		delete(m, "enumDescriptions")
 		delete(m, "enum_descriptions")
+		delete(m, "enable_search")
+		delete(m, "enable_thinking")
+		delete(m, "search_options")
+		delete(m, "serch_options")
 
 		// 5. Strip "items" if type is explicitly present and is not "array"
 		if _, hasItems := m["items"]; hasItems {
@@ -1287,3 +1302,131 @@ func translateModelName(requestedModel string, targetModel string, isNativeGemin
 		}
 	}
 }
+
+var (
+	thoughtSignatureCache = make(map[string]interface{})
+	thoughtSignatureMu    sync.RWMutex
+)
+
+func extractAndCacheThoughtSignatures(respBytes []byte) {
+	trimmed := bytes.TrimSpace(respBytes)
+	if bytes.HasPrefix(trimmed, []byte("data: ")) {
+		trimmed = bytes.TrimPrefix(trimmed, []byte("data: "))
+		trimmed = bytes.TrimSpace(trimmed)
+	}
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("[DONE]")) {
+		return
+	}
+
+	var parsed map[string]interface{}
+	if err := json.Unmarshal(trimmed, &parsed); err != nil {
+		return
+	}
+
+	choices, ok := parsed["choices"].([]interface{})
+	if !ok {
+		return
+	}
+
+	for _, choiceVal := range choices {
+		choice, ok := choiceVal.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		var toolCalls []interface{}
+		if message, ok := choice["message"].(map[string]interface{}); ok {
+			if tc, ok := message["tool_calls"].([]interface{}); ok {
+				toolCalls = tc
+			}
+		} else if delta, ok := choice["delta"].(map[string]interface{}); ok {
+			if tc, ok := delta["tool_calls"].([]interface{}); ok {
+				toolCalls = tc
+			}
+		}
+
+		for _, tcVal := range toolCalls {
+			tc, ok := tcVal.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			id, ok := tc["id"].(string)
+			if !ok || id == "" {
+				continue
+			}
+
+			extraContent, hasExtra := tc["extra_content"]
+			if hasExtra && extraContent != nil {
+				thoughtSignatureMu.Lock()
+				if len(thoughtSignatureCache) > 2000 {
+					thoughtSignatureCache = make(map[string]interface{})
+				}
+				thoughtSignatureCache[id] = extraContent
+				thoughtSignatureMu.Unlock()
+			}
+		}
+	}
+}
+
+func restoreThoughtSignatures(bodyBytes []byte) []byte {
+	var parsed map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &parsed); err != nil {
+		return bodyBytes
+	}
+
+	messages, ok := parsed["messages"].([]interface{})
+	if !ok {
+		return bodyBytes
+	}
+
+	modified := false
+	for _, msgVal := range messages {
+		msg, ok := msgVal.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		role, _ := msg["role"].(string)
+		if role != "assistant" {
+			continue
+		}
+
+		toolCalls, ok := msg["tool_calls"].([]interface{})
+		if !ok {
+			continue
+		}
+
+		for _, tcVal := range toolCalls {
+			tc, ok := tcVal.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			id, ok := tc["id"].(string)
+			if !ok || id == "" {
+				continue
+			}
+
+			_, hasExtra := tc["extra_content"]
+			if !hasExtra {
+				thoughtSignatureMu.RLock()
+				extraContent, cached := thoughtSignatureCache[id]
+				thoughtSignatureMu.RUnlock()
+
+				if cached {
+					tc["extra_content"] = extraContent
+					modified = true
+				}
+			}
+		}
+	}
+
+	if modified {
+		if updatedBytes, err := json.Marshal(parsed); err == nil {
+			return updatedBytes
+		}
+	}
+	return bodyBytes
+}
+

@@ -1,5 +1,5 @@
 # --- Stage 1: Build Frontend Assets ---
-FROM node:20-alpine AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend-builder
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -8,11 +8,13 @@ COPY vite.config.js ./
 RUN npm run build
 
 # --- Stage 2: Compile Go App ---
-FROM golang:1.25-alpine AS backend-builder
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS backend-builder
 WORKDIR /app
 
-# Enable CGO_ENABLED=0 for static standalone binary
-ENV CGO_ENABLED=0 GOOS=linux
+# Enable static cross-compilation using Buildx target parameters
+ARG TARGETOS
+ARG TARGETARCH
+ENV CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
 
 # Download dependencies
 COPY go.mod go.sum ./
@@ -21,7 +23,6 @@ RUN go mod download
 # Copy source code and build assets
 COPY . .
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
-
 
 # Compile the Go application with optimization flags
 RUN go build -ldflags="-s -w" -o dc-ai-api .

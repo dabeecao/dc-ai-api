@@ -8,13 +8,20 @@
 
 Một API Proxy hiệu năng cao, bền bỉ được phát triển bằng **Go**, được thiết kế để luân phiên (rotate) nhiều API key nguồn cấp (upstream API keys), phân phối tải request, tự động kiểm tra tình trạng hoạt động (health check) của key, và cung cấp một bảng quản trị web (admin dashboard) trực quan cùng giao diện chat client đầy đủ tính năng.
 
-> [!NOTE]
-> Tài liệu kỹ thuật chi tiết, ghi chú nhà phát triển, ví dụ tích hợp API và cấu hình reverse proxy (Nginx & Cloudflare) đã được chuyển sang [dev.md](file:///opt/dc-ai-api/dev.md).
-
-<p align="center">
-  <img src="preview/preview.jpg" alt="Admin Dashboard" width="49%" />
-  <img src="preview/preview-2.jpg" alt="Chat Client" width="49%" />
-</p>
+<table align="center">
+  <tr>
+    <td align="center" width="50%">
+      <img src="preview/preview.jpg" alt="Bảng điều khiển Admin" />
+      <br />
+      <sub>Bảng điều khiển Admin</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="preview/preview-2.jpg" alt="Giao diện Chat Client" />
+      <br />
+      <sub>Giao diện Chat Client</sub>
+    </td>
+  </tr>
+</table>
 
 ---
 

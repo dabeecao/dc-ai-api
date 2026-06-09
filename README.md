@@ -8,13 +8,20 @@
 
 A high-performance, resilient API Proxy built in **Go** designed to rotate multiple upstream API keys, distribute request load, perform automatic key health checks, and provide an intuitive web administration dashboard alongside a feature-rich client chat interface.
 
-> [!NOTE]
-> Detailed technical documentation, developer notes, API integration examples, and reverse proxy configurations (Nginx & Cloudflare) have been moved to [dev.md](file:///opt/dc-ai-api/dev.md).
-
-<p align="center">
-  <img src="preview/preview.jpg" alt="Admin Dashboard" width="49%" />
-  <img src="preview/preview-2.jpg" alt="Chat Client" width="49%" />
-</p>
+<table align="center">
+  <tr>
+    <td align="center" width="50%">
+      <img src="preview/preview.jpg" alt="Admin Dashboard" />
+      <br />
+      <sub>Admin Dashboard</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="preview/preview-2.jpg" alt="Chat Client" />
+      <br />
+      <sub>Chat Client</sub>
+    </td>
+  </tr>
+</table>
 
 ---
 

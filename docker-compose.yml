@@ -1,9 +1,6 @@
 services:
   dc-ai-api:
-    build:
-      context: .
-      args:
-        PUBLIC_DOMAIN: /
+    image: ghcr.io/dabeecao/dc-ai-api:latest
     container_name: dc-ai-api
     ports:
       - "${PORT:-8080}:8080"

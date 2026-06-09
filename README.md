@@ -126,6 +126,18 @@ docker run -d \
   -e TAVILY_API_KEY="your_tavily_key" \
   --name dc-ai-api \
   dc-ai-api
+```
+
+#### 🐙 Run with Docker Compose
+
+Alternatively, you can deploy and run the app with Docker Compose:
+
+```bash
+docker compose up -d --build
+```
+
+This automatically builds the application, mounts a local `./data` directory for persistence, and environment configurations will be read automatically from your local `.env` file.
+
 
 ### 🌐 Reverse Proxy with Nginx
 

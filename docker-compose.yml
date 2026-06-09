@@ -1,0 +1,17 @@
+services:
+  dc-ai-api:
+    build:
+      context: .
+      args:
+        PUBLIC_DOMAIN: /
+    container_name: dc-ai-api
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      - PORT=8080
+      - DATABASE_FILE=/data/proxy.db
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-your_secure_admin_password}
+      - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+    restart: unless-stopped

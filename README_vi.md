@@ -126,6 +126,18 @@ docker run -d \
   -e TAVILY_API_KEY="your_tavily_key" \
   --name dc-ai-api \
   dc-ai-api
+```
+
+#### 🐙 Chạy với Docker Compose
+
+Ngoài ra, bạn có thể triển khai và chạy ứng dụng nhanh chóng bằng Docker Compose:
+
+```bash
+docker compose up -d --build
+```
+
+Lệnh này sẽ tự động build ứng dụng, mount thư mục `./data` cục bộ để lưu trữ dữ liệu SQLite lâu dài, và tự động nạp các cấu hình môi trường từ tệp `.env` của bạn.
+
 
 ### 🌐 Cấu hình Reverse Proxy với Nginx
 

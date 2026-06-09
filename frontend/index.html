@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DC AI API Dashboard</title>
+    <meta name="description" content="DC AI API Proxy admin control panel. Track traffic metrics, configure key rotation pools, and view fallback stats in real-time.">
+    <meta name="keywords" content="DC AI API, API Proxy, Key Rotator, Admin Dashboard, Go API Proxy">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='url(%23grad)'/%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b5cf6'/%3E%3Cstop offset='100%25' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold' font-size='14'%3EDC%3C/text%3E%3C/svg%3E">
+</head>
+<body style="opacity: 0;">
+
+    <header>
+        <div class="logo-section">
+            <div class="logo-icon">
+                <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 65%; height: 65%;">
+                    <path d="M16 3L28 10V22L16 29L4 22V10L16 3Z" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round" />
+                    <path d="M16 10L22 13V19L16 22L10 19V13L16 10Z" fill="#ffffff" opacity="0.35" />
+                    <circle cx="16" cy="16" r="3" fill="#ffffff" />
+                </svg>
+            </div>
+            <span class="logo-title">DC AI API Portal</span>
+        </div>
+        <div class="header-controls">
+            <a href="/docs" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600;"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> API Docs</a>
+            <button id="logoutBtn" class="btn btn-secondary btn-sm" style="display: none;">Logout</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="dashboard-body">
+            <!-- Left Column: Keys Management -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div style="display: flex; align-items: center; gap: 1rem; width: 100%; justify-content: space-between;">
+                        <span class="panel-title" id="panelTitle">System & Fallback Statistics</span>
+                        <div class="tab-buttons">
+                            <button class="tab-btn active" id="tabStats" title="Statistics">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                                <span class="tab-text">Statistics</span>
+                            </button>
+                            <button class="tab-btn" id="tabUpstream" title="Upstream Keys">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                                <span class="tab-text">Upstream Keys</span>
+                            </button>
+                            <button class="tab-btn" id="tabClient" title="Clients">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                <span class="tab-text">Clients</span>
+                            </button>
+                            <button class="tab-btn" id="tabSettings" title="Settings">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                                <span class="tab-text">Settings</span>
+                            </button>
+                            <button class="tab-btn" id="tabErrorLogs" title="Error Logs">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                <span class="tab-text">Error Logs</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistics Container (Shown by default) -->
+                <div class="table-container" id="statsContainer" style="padding: 1.5rem; display: block;">
+                    <div class="stats-container" style="margin-bottom: 0;">
+                        <div class="stats-section-title">Proxy & Upstream Statistics</div>
+                        <div class="stats-grid stats-grid-4">
+                            <div class="stat-card">
+                                <div class="stat-card-header-row">
+                                    <span class="stat-label">Total Upstream Keys</span>
+                                    <div class="stat-card-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                                    </div>
+                                </div>
+                                <span id="statTotalKeys" class="stat-value"><span class="skeleton-loader" style="width: 45px; height: 1.8rem; border-radius: 6px; display: inline-block;"></span></span>
+                            </div>
+                            <div class="stat-card active-keys">
+                                <div class="stat-card-header-row">
+                                    <span class="stat-label">Active Upstream Keys</span>
+                                    <div class="stat-card-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 11 2 2 4-4"/></svg>
+                                    </div>
+                                </div>
+                                <span id="statActiveKeys" class="stat-value"><span class="skeleton-loader" style="width: 45px; height: 1.8rem; border-radius: 6px; display: inline-block;"></span></span>
+                            </div>
+                            <div class="stat-card success-rate">
+                                <div class="stat-card-header-row">
+                                    <span class="stat-label">Success Rate</span>
+                                    <div class="stat-card-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                                    </div>
+                                </div>
+                                <span id="statSuccessRate" class="stat-value"><span class="skeleton-loader" style="width: 65px; height: 1.8rem; border-radius: 6px; display: inline-block;"></span></span>
+                            </div>
+                            <div class="stat-card active-keys">
+                                <div class="stat-card-header-row">
+                                    <span class="stat-label">Active Client Keys</span>
+                                    <div class="stat-card-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                    </div>
+                                </div>
+                                <span id="statActiveClientKeys" class="stat-value"><span class="skeleton-loader" style="width: 45px; height: 1.8rem; border-radius: 6px; display: inline-block;"></span></span>
+                            </div>
+                        </div>
+ 
+                        <div class="stats-section-title" style="margin-top: 1.5rem;">Fallback Statistics</div>
+                        <div class="stats-grid stats-grid-4">
+                            <div class="stat-card">
+                                <div class="stat-card-header-row">
+                                    <span class="stat-label">Fallback Total Requests</span>
+                                    <div class="stat-card-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                    </div>
+                                </div>
+                                <span id="statGcliTotalRequests" class="stat-value"><span class="skeleton-loader" style="width: 45px; height: 1.8rem; border-radius: 6px; display: inline-block;"></span></span>
+                            </div>
+                            <div class="stat-card active-keys">
+                                <div class="stat-card-header-row">
+                                    <span class="stat-label">Fallback Successful Requests</span>
+                                    <div class="stat-card-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                                    </div>
+                                </div>
+                                <span id="statGcliSuccessCount" class="stat-value"><span class="skeleton-loader" style="width: 45px; height: 1.8rem; border-radius: 6px; display: inline-block;"></span></span>
+                            </div>
+                            <div class="stat-card failed-keys">
+                                <div class="stat-card-header-row">
+                                    <span class="stat-label">Fallback Failed Requests</span>
+                                    <div class="stat-card-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                    </div>
+                                </div>
+                                <span id="statGcliFailureCount" class="stat-value"><span class="skeleton-loader" style="width: 45px; height: 1.8rem; border-radius: 6px; display: inline-block;"></span></span>
+                            </div>
+                            <div class="stat-card success-rate">
+                                <div class="stat-card-header-row">
+                                    <span class="stat-label">Fallback Success Rate</span>
+                                    <div class="stat-card-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+                                    </div>
+                                </div>
+                                <span id="statGcliSuccessRate" class="stat-value"><span class="skeleton-loader" style="width: 65px; height: 1.8rem; border-radius: 6px; display: inline-block;"></span></span>
+                            </div>
+                        </div>
+
+                        <div class="stats-section-title" style="margin-top: 1.5rem;">Token Consumption Statistics</div>
+                        <div class="stats-grid stats-grid-2">
+                            <div class="stat-card success-rate">
+                                <div class="stat-card-header-row">
+                                    <span class="stat-label">Upstream Tokens Consumed</span>
+                                    <div class="stat-card-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                                    </div>
+                                </div>
+                                <span id="statTotalTokens" class="stat-value"><span class="skeleton-loader" style="width: 75px; height: 1.8rem; border-radius: 6px; display: inline-block;"></span></span>
+                                <div id="statTokenDetails" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
+                                    Prompt: 0 • Comp: 0
+                                </div>
+                            </div>
+                            <div class="stat-card success-rate">
+                                <div class="stat-card-header-row">
+                                    <span class="stat-label">Fallback Tokens Consumed</span>
+                                    <div class="stat-card-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                                    </div>
+                                </div>
+                                <span id="statGcliTotalTokens" class="stat-value"><span class="skeleton-loader" style="width: 75px; height: 1.8rem; border-radius: 6px; display: inline-block;"></span></span>
+                                <div id="statGcliTokenDetails" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
+                                    Prompt: 0 • Comp: 0
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="addKeyForm" class="form-row-vertical" style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.005); display: none; flex-direction: column; gap: 1rem;">
+                    <div class="add-key-grid">
+                        <div class="input-group">
+                            <label class="input-label" for="keyLabel">Label / Name</label>
+                            <input type="text" id="keyLabel" class="input-field" placeholder="e.g. My OpenRouter Key" required autocomplete="off">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label" for="keySecret">API Key</label>
+                            <input type="password" id="keySecret" class="input-field" placeholder="sk-... or AIzaSy..." required autocomplete="off">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label" for="keyURL">Upstream URL</label>
+                            <input type="text" id="keyURL" class="input-field" placeholder="e.g. https://api.openai.com or https://generativelanguage.googleapis.com" required autocomplete="off">
+                        </div>
+                        <button type="button" class="btn btn-secondary" id="fetchModelsBtn" style="height: 38px; min-width: 140px;">Fetch Models</button>
+                    </div>
+
+                    <!-- Supports Options & Auto-detect Display -->
+                    <div id="apiSupportContainer" style="display: none; align-items: center; gap: 2rem; margin-top: 0.25rem;">
+                        <span class="input-label">Auto-detected Formats (Check to enable):</span>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                            <input type="checkbox" id="supportOpenAI" style="width: 16px; height: 16px; cursor: pointer;">
+                            <span>OpenAI API compatible</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                            <input type="checkbox" id="supportGemini" style="width: 16px; height: 16px; cursor: pointer;">
+                            <span>Gemini Native API</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                            <input type="checkbox" id="supportClaude" style="width: 16px; height: 16px; cursor: pointer;">
+                            <span>Claude Native API</span>
+                        </label>
+                    </div>
+
+                    <!-- Model Checklist Container -->
+                    <div id="addKeyModelsContainer" style="display: none; padding-top: 1rem; border-top: 1px dashed var(--border-color); width: 100%;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <span class="input-label">Select Models to Expose via Proxy: <span id="addKeyModelsCount" style="color: var(--color-primary); font-weight: normal; margin-left: 0.25rem;">(0/0)</span></span>
+                            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                                <label style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; cursor: pointer; color: var(--text-secondary); user-select: none; margin-right: 0.25rem;">
+                                    <input type="checkbox" id="addKeyShowSelectedOnly" style="width: 13px; height: 13px; cursor: pointer;">
+                                    <span>Selected Only</span>
+                                </label>
+                                <input type="text" id="addKeyModelFilter" class="input-field btn-sm" placeholder="Filter models..." style="width: 140px; padding: 4px 8px; margin-bottom: 0;">
+                                <button type="button" class="btn btn-secondary btn-sm" id="addAllModelsBtn">Select All</button>
+                                <button type="button" class="btn btn-secondary btn-sm" id="clearAllModelsBtn">Clear</button>
+                            </div>
+                        </div>
+                        <div id="addKeyModelsList" class="models-checklist-grid">
+                            <!-- Populated dynamically -->
+                        </div>
+                        <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end;">
+                            <button type="submit" class="btn btn-primary" id="saveNewKeyBtn">Save & Add Key</button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Add Client Key Form (Hidden by default) -->
+                <form id="addClientKeyForm" class="form-row client-form" style="display: none;">
+                    <div class="input-group">
+                        <label class="input-label" for="clientKeyLabel">Client Name / Application</label>
+                        <input type="text" id="clientKeyLabel" class="input-field" placeholder="e.g. Chatbot Frontend" required autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Generate API Key</button>
+                </form>
+
+                <!-- Upstream Keys Table Container -->
+                <div class="table-container" id="upstreamTableContainer" style="display: none;">
+                    <div style="display: flex; gap: 0.5rem; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); background: rgba(0, 0, 0, 0.15);">
+                        <input type="text" id="upstreamKeyFilter" class="input-field" placeholder="Filter upstream keys..." style="height: 34px; padding: 0 12px; margin-bottom: 0; max-width: 400px;" autocomplete="off">
+                    </div>
+                    <table id="keysTable">
+                        <thead>
+                            <tr>
+                                <th>Label</th>
+                                <th>API Key</th>
+                                <th>Status</th>
+                                <th>Requests</th>
+                                <th>Success / Fail</th>
+                                <th style="width: 250px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="keysTableBody">
+                            <tr>
+                                <td><div class="skeleton-loader skeleton-text-lg"></div><div class="skeleton-loader skeleton-text-sm" style="display:block; margin-top:6px;"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-lg"></div><div class="skeleton-loader skeleton-text-md" style="display:block; margin-top:6px;"></div></td>
+                                <td><div class="skeleton-loader skeleton-badge"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-sm"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-md"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-lg" style="width: 100px;"></div></td>
+                            </tr>
+                            <tr>
+                                <td><div class="skeleton-loader skeleton-text-lg"></div><div class="skeleton-loader skeleton-text-sm" style="display:block; margin-top:6px;"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-lg"></div><div class="skeleton-loader skeleton-text-md" style="display:block; margin-top:6px;"></div></td>
+                                <td><div class="skeleton-loader skeleton-badge"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-sm"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-md"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-lg" style="width: 100px;"></div></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div id="keysCardsMobile" class="mobile-cards-list">
+                        <div class="mobile-card skeleton-card">
+                            <div class="mobile-card-header" style="border-bottom: none;">
+                                <div style="width: 60%;"><div class="skeleton-loader skeleton-text-lg" style="width: 80%;"></div><div class="skeleton-loader skeleton-text-sm" style="width: 40%; margin-top: 6px;"></div></div>
+                                <div class="skeleton-loader skeleton-badge"></div>
+                            </div>
+                            <div class="mobile-card-body" style="gap: 12px; margin-top: 10px;">
+                                <div class="skeleton-loader skeleton-text-md" style="width: 100%;"></div>
+                                <div class="skeleton-loader skeleton-text-md" style="width: 90%;"></div>
+                                <div class="skeleton-loader skeleton-text-md" style="width: 80%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Client Keys Table Container -->
+                <div class="table-container" id="clientTableContainer" style="display: none;">
+                    <table id="clientKeysTable">
+                        <thead>
+                            <tr>
+                                <th>Label</th>
+                                <th>Client API Key</th>
+                                <th>Status</th>
+                                <th>Requests</th>
+                                <th>Last Used</th>
+                                <th style="width: 200px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientKeysTableBody">
+                            <tr>
+                                <td><div class="skeleton-loader skeleton-text-lg"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-lg"></div></td>
+                                <td><div class="skeleton-loader skeleton-badge"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-sm"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-md"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-lg" style="width: 100px;"></div></td>
+                            </tr>
+                            <tr>
+                                <td><div class="skeleton-loader skeleton-text-lg"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-lg"></div></td>
+                                <td><div class="skeleton-loader skeleton-badge"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-sm"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-md"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-lg" style="width: 100px;"></div></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div id="clientKeysCardsMobile" class="mobile-cards-list">
+                        <div class="mobile-card skeleton-card">
+                            <div class="mobile-card-header" style="border-bottom: none;">
+                                <div style="width: 60%;"><div class="skeleton-loader skeleton-text-lg" style="width: 80%;"></div><div class="skeleton-loader skeleton-text-sm" style="width: 40%; margin-top: 6px;"></div></div>
+                                <div class="skeleton-loader skeleton-badge"></div>
+                            </div>
+                            <div class="mobile-card-body" style="gap: 12px; margin-top: 10px;">
+                                <div class="skeleton-loader skeleton-text-md" style="width: 100%;"></div>
+                                <div class="skeleton-loader skeleton-text-md" style="width: 90%;"></div>
+                                <div class="skeleton-loader skeleton-text-md" style="width: 80%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Container (Hidden by default) -->
+                <div class="table-container" id="settingsContainer" style="display: none; padding: 1.5rem;">
+                    <form id="settingsForm" style="display: flex; flex-direction: column; gap: 1.25rem; max-width: 650px; margin: 2rem auto; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 1.25rem; padding: 2.5rem; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), 0 0 40px rgba(139, 92, 246, 0.04); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
+                        <div class="input-group">
+                            <label class="input-label" for="settingsFallbackKey">Default Fallback API Key</label>
+                            <input type="password" id="settingsFallbackKey" class="input-field" placeholder="sk-... or AIzaSy..." required autocomplete="off">
+                        </div>
+                        <div class="settings-url-grid">
+                            <div class="input-group">
+                                <label class="input-label" for="settingsFallbackURL">Default Fallback Upstream URL</label>
+                                <input type="text" id="settingsFallbackURL" class="input-field" placeholder="e.g. https://gcli.ggchan.dev or https://api.openai.com" required autocomplete="off">
+                            </div>
+                            <button type="button" class="btn btn-secondary" id="settingsFetchModelsBtn" style="height: 38px; min-width: 140px;">Fetch Models</button>
+                        </div>
+                        <div class="settings-model-grid">
+                            <div class="input-group">
+                                <label class="input-label" for="settingsFallbackModel">Default Fallback Model</label>
+                                <select id="settingsFallbackModel" class="input-field" style="height: 38px; padding: 0 8px;" required>
+                                    <option value="" disabled selected>Select fallback model...</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label class="input-label" for="settingsFallbackAPIType">Fallback API Type</label>
+                                <select id="settingsFallbackAPIType" class="input-field" style="height: 38px; padding: 0 8px;">
+                                    <option value="openai">OpenAI API</option>
+                                    <option value="gemini">Gemini Native</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label" for="settingsMaxRequestSize">Max Request Payload Size (KB) <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">(0 to disable limit)</span></label>
+                            <input type="number" id="settingsMaxRequestSize" class="input-field" placeholder="e.g. 1024" min="0" required autocomplete="off">
+                        </div>
+                        
+                        <!-- Guest API Key Settings Section -->
+                        <div style="border-top: 1px dashed var(--border-color); padding-top: 1.25rem; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+                            <div class="stats-section-title" style="margin-bottom: 0.25rem; font-size: 0.8125rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Guest API Key Settings</div>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem; margin-bottom: -0.25rem; user-select: none;">
+                                <input type="checkbox" id="settingsEnableGuestKey" style="width: 16px; height: 16px; cursor: pointer;">
+                                <span>Enable Guest API Key</span>
+                            </label>
+                            <div class="settings-url-grid">
+                                <div class="input-group">
+                                    <label class="input-label" for="settingsGuestKey">Guest API Key</label>
+                                    <input type="text" id="settingsGuestKey" class="input-field" placeholder="e.g. dc_guest_..." autocomplete="off">
+                                </div>
+                                <button type="button" class="btn btn-secondary" id="settingsGenGuestKeyBtn" style="height: 38px; min-width: 140px;">Generate Key</button>
+                            </div>
+                            <div class="input-group">
+                                <label class="input-label" for="settingsGuestModel">Guest Model</label>
+                                <select id="settingsGuestModel" class="input-field" style="height: 38px; padding: 0 8px;">
+                                    <option value="" disabled selected>Select guest model...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 0.5rem;">
+                            <button type="submit" class="btn btn-primary" style="min-width: 140px;">Save Settings</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Error Logs Container (Hidden by default) -->
+                <div class="table-container" id="errorLogsContainer" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.75rem; background: rgba(0, 0, 0, 0.15);">
+                        <div style="display: flex; gap: 0.5rem; align-items: center; width: 100%; max-width: 400px;">
+                            <input type="text" id="errorLogFilter" class="input-field" placeholder="Filter logs..." style="height: 34px; padding: 0 12px; margin-bottom: 0;" autocomplete="off">
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm" id="clearErrorLogsBtn" style="height: 34px; min-width: 120px;">Clear All Logs</button>
+                    </div>
+                    <table id="errorLogsTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 180px;">Timestamp</th>
+                                <th style="width: 200px;">Upstream Key</th>
+                                <th style="width: 110px;">Status Code</th>
+                                <th>Error Message</th>
+                                <th style="width: 90px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="errorLogsTableBody">
+                            <tr>
+                                <td><div class="skeleton-loader skeleton-text-md"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-lg"></div></td>
+                                <td><div class="skeleton-loader skeleton-badge"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-lg" style="width: 80%;"></div></td>
+                            </tr>
+                            <tr>
+                                <td><div class="skeleton-loader skeleton-text-md"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-lg"></div></td>
+                                <td><div class="skeleton-loader skeleton-badge"></div></td>
+                                <td><div class="skeleton-loader skeleton-text-lg" style="width: 80%;"></div></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div id="errorLogsCardsMobile" class="mobile-cards-list">
+                        <div class="mobile-card skeleton-card">
+                            <div class="mobile-card-header" style="border-bottom: none;">
+                                <div style="width: 60%;"><div class="skeleton-loader skeleton-text-lg" style="width: 80%;"></div><div class="skeleton-loader skeleton-text-sm" style="width: 40%; margin-top: 6px;"></div></div>
+                                <div class="skeleton-loader skeleton-badge"></div>
+                            </div>
+                            <div class="mobile-card-body" style="gap: 12px; margin-top: 10px;">
+                                <div class="skeleton-loader skeleton-text-md" style="width: 100%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Edit Upstream Key Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content" style="width: 550px; max-width: 95%;">
+            <div class="modal-header">Edit Upstream API Key</div>
+            <div class="input-group">
+                <label class="input-label" for="editKeyLabel">Label / Name</label>
+                <input type="text" id="editKeyLabel" class="input-field" required autocomplete="off">
+            </div>
+            <div class="input-group">
+                <label class="input-label" for="editKeySecret">API Key</label>
+                <input type="password" id="editKeySecret" class="input-field" required autocomplete="off">
+            </div>
+            <div class="input-group">
+                <label class="input-label" for="editKeyURL">Upstream URL</label>
+                <input type="text" id="editKeyURL" class="input-field" required autocomplete="off">
+            </div>
+
+            <!-- Supports Options -->
+            <div style="display: flex; align-items: center; gap: 1.5rem; margin-top: 0.25rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                    <input type="checkbox" id="editSupportOpenAI" style="width: 16px; height: 16px; cursor: pointer;">
+                    <span>OpenAI API Compatible</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                    <input type="checkbox" id="editSupportGemini" style="width: 16px; height: 16px; cursor: pointer;">
+                    <span>Gemini Native API</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                    <input type="checkbox" id="editSupportClaude" style="width: 16px; height: 16px; cursor: pointer;">
+                    <span>Claude Native API</span>
+                </label>
+            </div>
+
+            <!-- Model Checklist for Edit -->
+            <div style="border-top: 1px dashed var(--border-color); padding-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                    <span class="input-label">Exposed Models: <span id="editKeyModelsCount" style="color: var(--color-primary); font-weight: normal; margin-left: 0.25rem;">(0/0)</span></span>
+                    <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+                        <label style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; cursor: pointer; color: var(--text-secondary); user-select: none; margin-right: 0.25rem;">
+                            <input type="checkbox" id="editKeyShowSelectedOnly" style="width: 13px; height: 13px; cursor: pointer;">
+                            <span>Selected Only</span>
+                        </label>
+                        <input type="text" id="editKeyModelFilter" class="input-field btn-sm" placeholder="Filter..." style="width: 100px; padding: 4px 8px; margin-bottom: 0;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="editSelectAllModelsBtn">Select All</button>
+                        <button type="button" class="btn btn-secondary btn-sm" id="editClearAllModelsBtn">Clear</button>
+                        <button type="button" class="btn btn-secondary btn-sm" id="editRefetchModelsBtn">Refetch</button>
+                    </div>
+                </div>
+                <div id="editKeyModelsList" class="models-checklist-grid" style="max-height: 180px; overflow-y: auto;">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button class="btn btn-primary" id="saveEditBtn">Save changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generated Client Key Display Modal -->
+    <div class="modal" id="keyGenModal">
+        <div class="modal-content" style="width: 460px;">
+            <div class="modal-header" style="color: var(--color-active); font-weight:700;">Client API Key Generated</div>
+            <p style="font-size: 0.875rem; color: var(--text-secondary);">
+                Please copy this key now. For your security, you will not be able to view it in full again.
+            </p>
+            <div class="input-group" style="margin-top: 0.5rem;">
+                <div class="key-text-container" style="background: rgba(0,0,0,0.35); padding: 0.75rem; border-radius: 0.375rem; border: 1px solid var(--border-color); justify-content: space-between;">
+                    <span id="generatedKeyText" class="key-masked" style="color: var(--text-primary); font-size: 0.95rem; font-weight: 500; font-family: 'JetBrains Mono', monospace;">pk_xxxx</span>
+                    <button class="btn btn-secondary btn-sm" id="copyGenKeyBtn" style="padding: 4px 10px;">Copy</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeKeyGenModal()">I have copied it</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

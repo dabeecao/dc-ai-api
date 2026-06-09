@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DC AI Chat Client</title>
+    <meta name="description" content="Professional Chat AI interface integrated with DC AI API Proxy">
+    <meta name="keywords" content="DC AI API, Chat Client, AI Chat, API Proxy, Key Rotator, OpenAI, Claude, Gemini">
+    <meta property="og:title" content="DC AI Chat Client">
+    <meta property="og:description" content="Professional Chat AI interface integrated with DC AI API Proxy">
+    <meta property="og:type" content="website">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='url(%23grad)'/%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b5cf6'/%3E%3Cstop offset='100%25' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold' font-size='14'%3EDC%3C/text%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="chat.css">
+    <script type="module" src="chat.js"></script>
+</head>
+<body>
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="/chat" class="logo-section">
+                    <div class="logo-icon">
+                        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 65%; height: 65%;">
+                            <path d="M16 3L28 10V22L16 29L4 22V10L16 3Z" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round" />
+                            <path d="M16 10L22 13V19L16 22L10 19V13L16 10Z" fill="#ffffff" opacity="0.35" />
+                            <circle cx="16" cy="16" r="3" fill="#ffffff" />
+                        </svg>
+                    </div>
+                    <span class="logo-title">DC AI Chat</span>
+                </a>
+                <button class="menu-toggle-btn" id="sidebarCloseBtn">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            
+            <div class="new-chat-btn-container">
+                <button class="btn-new-chat" id="newChatBtn">
+                    <i data-lucide="plus"></i> <span id="lblNewChat">Cuộc trò chuyện mới</span>
+                </button>
+            </div>
+
+            <!-- Conversations History List -->
+            <div class="history-list" id="historyList">
+                <!-- Session items will be dynamically injected here -->
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="status-indicator" style="display: none !important;">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Chưa cấu hình API Key</span>
+                </div>
+                <div class="sidebar-actions">
+                    <button class="btn-action" id="settingsBtn" title="Cấu hình settings">
+                        <i data-lucide="settings" style="width:1rem;height:1rem;"></i> <span id="lblSettingsBtn">Cài đặt</span>
+                    </button>
+                    <button class="btn-action" id="clearAllBtn" title="Xóa tất cả lịch sử chat">
+                        <i data-lucide="trash-2" style="width:1rem;height:1rem;"></i> <span id="lblClearAllBtn">Xóa hết</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Panel -->
+        <main class="main-panel">
+            <header class="main-header">
+                <div class="header-left">
+                    <button class="menu-toggle-btn" id="sidebarOpenBtn">
+                        <i data-lucide="menu"></i>
+                    </button>
+                    
+                    <div class="model-select-container">
+                        <div class="custom-select-wrapper" id="modelSelectWrapper">
+                            <button type="button" class="custom-select-trigger" id="modelSelectTrigger" disabled>
+                                <i data-lucide="sparkles" class="trigger-icon" style="width:0.95rem;height:0.95rem;color:var(--color-violet)"></i>
+                                <span class="trigger-text" id="modelSelectText">Đang tải model...</span>
+                                <i data-lucide="chevron-down" class="chevron-icon" style="width:0.95rem;height:0.95rem;"></i>
+                            </button>
+                            <div class="custom-select-popover" id="modelSelectPopover">
+                                <div class="popover-search-box">
+                                    <i data-lucide="search" class="search-icon" style="width:0.875rem;height:0.875rem;"></i>
+                                    <input type="text" class="popover-search-input" id="modelSearchInput" placeholder="Tìm hoặc nhập model...">
+                                </div>
+                                <div class="popover-options-list" id="modelOptionsList">
+                                    <!-- Options will be dynamically populated -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    <button class="warning-badge" id="keyWarningBadge" style="display:none;">
+                        <i data-lucide="alert-circle" style="width:1rem;height:1rem;"></i> <span id="lblKeyWarning">Cần cấu hình Key</span>
+                    </button>
+                    <button class="btn-new-chat-mobile" id="newChatBtnMobile" title="Cuộc trò chuyện mới">
+                        <i data-lucide="square-pen" style="width:1.1rem;height:1.1rem;"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Chat messages box -->
+            <div class="chat-messages" id="chatMessages">
+                <!-- Messages or Welcome State -->
+            </div>
+
+            <!-- Scroll to bottom button -->
+            <button class="scroll-to-bottom-btn" id="scrollToBottomBtn" aria-label="Cuộn xuống cuối">
+                <i data-lucide="chevrons-down" style="width:1.1rem;height:1.1rem;"></i>
+            </button>
+
+            <!-- Input area -->
+            <div class="input-area-container">
+                <div class="input-bar-wrapper">
+                    <!-- Image Preview Area -->
+                    <div class="image-preview-container" id="imagePreviewContainer" style="display: none;"></div>
+
+                    <form id="chatForm">
+                        <div class="input-bar-box">
+                            <!-- Attachment Button -->
+                            <button type="button" class="btn-input-action" id="attachBtn" title="Đính kèm ảnh">
+                                <i data-lucide="paperclip" style="width:1.1rem;height:1.1rem;"></i>
+                            </button>
+                            <input type="file" id="imageInput" accept="image/*" multiple style="display: none;">
+
+                            <!-- Web Search Toggle Button -->
+                            <button type="button" class="btn-input-action" id="webSearchToggleBtn" title="Tìm kiếm Web">
+                                <i data-lucide="globe" style="width:1.1rem;height:1.1rem;"></i>
+                            </button>
+
+                            <textarea 
+                                class="input-textarea" 
+                                id="chatInput" 
+                                placeholder="Hỏi tôi bất cứ điều gì..." 
+                                rows="1"
+                            ></textarea>
+                            <button type="submit" class="btn-send" id="sendBtn" disabled>
+                                <i data-lucide="arrow-up" id="sendIcon"></i>
+                            </button>
+                        </div>
+                    </form>
+                    <div class="input-hint-text" id="lblHintText">
+                        Đang kết nối qua DC AI Proxy. Dữ liệu hội thoại được lưu cục bộ trong trình duyệt của bạn.
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Settings Dialog -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="lblModalTitle">Cấu hình kết nối</h3>
+                <button class="modal-close-btn" id="modalCloseBtn">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <details style="border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.01);">
+                    <summary style="cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); user-select: none; display: flex; align-items: center; gap: 0.5rem; outline: none;">
+                        <i data-lucide="settings-2" style="width: 0.95rem; height: 0.95rem; color: var(--color-primary);"></i>
+                        <span id="lblAdvancedSettings">Cài đặt nâng cao / Advanced Settings</span>
+                    </summary>
+                    <div style="margin-top: 0.75rem;">
+                        <div class="input-group">
+                            <label class="input-label" for="apiKeyInput" id="lblApiKeyLabel">Client API Key (dc_...)</label>
+                            <div class="input-field-wrapper">
+                                <input 
+                                    type="password" 
+                                    class="input-field" 
+                                    id="apiKeyInput" 
+                                    placeholder="Nhập Client Key của bạn"
+                                >
+                                <button type="button" class="toggle-password-btn" id="togglePasswordBtn">
+                                    <i data-lucide="eye" style="width:1.1rem;height:1.1rem;" id="eyeIcon"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <div class="input-group">
+                    <label class="input-label" for="systemPromptInput" id="lblSystemPromptLabel">System Prompt</label>
+                    <textarea 
+                        class="input-field" 
+                        id="systemPromptInput" 
+                        rows="3" 
+                        placeholder="Cấu hình vai trò hoặc hướng dẫn cho AI..."
+                        style="resize: vertical; min-height: 80px;"
+                    ></textarea>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label" for="languageSelect" id="lblLanguageLabel">Ngôn ngữ / Language</label>
+                    <select class="input-field" id="languageSelect">
+                        <option value="vi">Tiếng Việt</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+
+                <details style="border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.01); margin-top: 0.75rem;">
+                    <summary style="cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); user-select: none; display: flex; align-items: center; gap: 0.5rem; outline: none;">
+                        <i data-lucide="shield-check" style="width: 0.95rem; height: 0.95rem; color: var(--color-primary);"></i>
+                        <span id="lblPrivacyTerms">Quyền riêng tư & Điều khoản / Privacy & Terms</span>
+                    </summary>
+                    <div style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; display: flex; flex-direction: column; gap: 0.75rem;" id="lblPrivacyContent">
+                        <!-- Localized content is injected dynamically -->
+                    </div>
+                </details>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modalCancelBtn">Hủy</button>
+                <button class="btn btn-primary" id="modalSaveBtn">Lưu & Tải lại</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast elements -->
+    <div class="toast-container" id="toastContainer"></div>
+</body>
+</html>

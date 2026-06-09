@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DC AI API Proxy Gateway</title>
+    <meta name="description" content="A resilient, high-performance API load balancer and rotator proxy for OpenAI, Gemini Native, and Claude. Unified access interface with automatic key recovery.">
+    <meta name="keywords" content="DC AI API, API Proxy, Key Rotator, Load Balancer, OpenAI, Claude, Gemini, Go API Proxy">
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='url(%23grad)'/%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b5cf6'/%3E%3Cstop offset='100%25' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold' font-size='14'%3EDC%3C/text%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #070a13;
+            --panel-bg: rgba(13, 20, 38, 0.45);
+            --border-color: rgba(255, 255, 255, 0.06);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --color-primary: #6366f1;
+            --color-violet: #8b5cf6;
+            --color-active: #10b981;
+            --shadow-glow: 0 0 30px rgba(99, 102, 241, 0.25);
+            --transition-smooth: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            background-color: var(--bg-color);
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.06) 0px, transparent 40%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.06) 0px, transparent 40%);
+            background-attachment: fixed;
+            line-height: 1.5;
+        }
+
+        /* Floating Blobs */
+        .glowing-blob {
+            position: absolute;
+            width: 450px;
+            height: 450px;
+            background: var(--color-primary);
+            border-radius: 50%;
+            filter: blur(150px);
+            opacity: 0.08;
+            z-index: 1;
+            pointer-events: none;
+            animation: floatBlob 15s infinite alternate ease-in-out;
+        }
+
+        @keyframes floatBlob {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(80px, 60px) scale(1.15); }
+        }
+
+        /* Container */
+        .landing-wrapper {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            justify-content: center;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 0;
+            margin-bottom: auto;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-violet));
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: #ffffff;
+            font-size: 1.25rem;
+            box-shadow: 0 0 25px rgba(139, 92, 246, 0.4);
+        }
+
+        .logo-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            padding: 5rem 1rem 4rem 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            font-weight: 900;
+            letter-spacing: -2px;
+            line-height: 1.1;
+            background: linear-gradient(135deg, #ffffff 40%, #818cf8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            max-width: 800px;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 650px;
+            line-height: 1.6;
+        }
+
+        /* CTA Buttons */
+        .cta-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.625rem;
+            padding: 0.85rem 1.75rem;
+            border-radius: 0.75rem;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            text-decoration: none;
+            border: 1px solid transparent;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--color-primary), var(--color-violet));
+            color: #ffffff;
+            box-shadow: var(--shadow-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 35px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(255, 255, 255, 0.12);
+            transform: translateY(-2px);
+        }
+
+        /* Features Section */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+            margin-bottom: auto;
+        }
+
+        .feature-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            padding: 1.75rem;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            transition: var(--transition-smooth);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .feature-card:hover {
+            border-color: rgba(255, 255, 255, 0.1);
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-icon {
+            width: 2.25rem;
+            height: 2.25rem;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            color: var(--color-primary);
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .feature-card:nth-child(2) .feature-icon {
+            color: var(--color-violet);
+            background: rgba(139, 92, 246, 0.1);
+            border-color: rgba(139, 92, 246, 0.2);
+        }
+
+        .feature-card:nth-child(3) .feature-icon {
+            color: var(--color-active);
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .feature-card h3 {
+            font-size: 1.125rem;
+            font-weight: 700;
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 2rem 0;
+            color: var(--text-muted);
+            font-size: 0.8125rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 4rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .glowing-blob {
+                display: none;
+            }
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            .hero p {
+                font-size: 1.1rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .landing-wrapper {
+                padding: 1.25rem 1rem;
+            }
+            .logo-icon {
+                width: 2rem;
+                height: 2rem;
+                font-size: 1rem;
+                box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+            }
+            .logo-title {
+                font-size: 1.1rem;
+            }
+            header .btn-secondary {
+                padding: 0.4rem 0.85rem !important;
+                font-size: 0.8rem !important;
+            }
+            .hero {
+                padding: 3rem 0.5rem 2rem 0.5rem;
+                gap: 1rem;
+            }
+            .hero h1 {
+                font-size: 2rem;
+                letter-spacing: -1px;
+            }
+            .hero p {
+                font-size: 0.95rem;
+            }
+            .cta-group {
+                flex-direction: column;
+                width: 100%;
+                gap: 0.75rem;
+            }
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            .features-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            .feature-card {
+                padding: 1.25rem;
+            }
+        }
+
+        /* Modal styling */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(7, 10, 19, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: var(--transition-smooth);
+            z-index: 1000;
+            padding: 1rem;
+        }
+
+        .modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: #0d1426;
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-glow);
+            transform: scale(0.95);
+            transition: var(--transition-smooth);
+        }
+
+        .modal.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+        }
+
+        .modal-close-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition-smooth);
+        }
+
+        .modal-close-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            text-align: left;
+        }
+
+        .modal-body h4 {
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="glowing-blob" style="top: 15%; left: 15%;"></div>
+    <div class="glowing-blob" style="bottom: 20%; right: 10%; background: var(--color-violet);"></div>
+
+    <div class="landing-wrapper">
+        <header>
+            <div class="logo-section">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 65%; height: 65%;">
+                        <path d="M16 3L28 10V22L16 29L4 22V10L16 3Z" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round" />
+                        <path d="M16 10L22 13V19L16 22L10 19V13L16 10Z" fill="#ffffff" opacity="0.35" />
+                        <circle cx="16" cy="16" r="3" fill="#ffffff" />
+                    </svg>
+                </div>
+                <span class="logo-title">DC AI API Proxy</span>
+            </div>
+            <div>
+                <a href="https://dabeecao.org#donate" target="_blank" class="btn btn-secondary" style="padding: 0.5rem 1.25rem; font-size: 0.875rem;">
+                    <i data-lucide="heart"></i> Donate
+                </a>
+            </div>
+        </header>
+
+        <section class="hero">
+            <h1>Unified Gateway for rotative LLM APIs</h1>
+            <p>A high-performance, resilient proxy database designed to rotate API credentials, balance request traffic, and perform live protocol formatting translations for OpenAI, Gemini, and Claude.</p>
+            
+            <div class="cta-group">
+                <a href="/chat" class="btn btn-primary">
+                    <i data-lucide="message-square"></i> Start Chatting
+                </a>
+                <a href="/docs" class="btn btn-secondary">
+                    <i data-lucide="book-open"></i> Explore API Docs
+                </a>
+                <a href="/admin" class="btn btn-secondary">
+                    <i data-lucide="layout-dashboard"></i> Admin Dashboard
+                </a>
+            </div>
+        </section>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon"><i data-lucide="refresh-cw"></i></div>
+                <h3>Key Rotation & Failover</h3>
+                <p>Ensures zero-downtime integrations by automatically rotating active upstream API keys using a fast Round-Robin lookup with automatic retry logic.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i data-lucide="languages"></i></div>
+                <h3>Protocol Translation</h3>
+                <p>Allows unified endpoints compatibility. Translate requests structures dynamically to matches Gemini Native and Claude protocols seamlessly.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i data-lucide="shield-check"></i></div>
+                <h3>Auto-Recovery & Health</h3>
+                <p>Verifies keys health dynamically on startup. Moves rate-limited keys into cool down states automatically and recovers them in background.</p>
+            </div>
+        </div>
+
+        <footer>
+            &copy; 2026 DC AI API Proxy. All rights reserved. | <a href="#" id="privacyTermsBtn" style="color: var(--color-primary); text-decoration: none; margin-left: 0.5rem; transition: var(--transition-smooth);" onmouseover="this.style.color='#8b5cf6'" onmouseout="this.style.color='#6366f1'">Privacy & Terms</a>
+        </footer>
+    </div>
+
+    <!-- Privacy & Terms Modal -->
+    <div class="modal" id="privacyTermsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Privacy Policy & Terms of Service</h3>
+                <button class="modal-close-btn" id="privacyTermsCloseBtn">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div>
+                    <h4>Privacy Policy</h4>
+                    <ul style="padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; list-style-type: disc; margin-top: 0.5rem;">
+                        <li><strong>Payload Privacy</strong>: All conversation payloads, messages, and files are streamed directly to the respective upstream AI providers. <strong>No chat history or prompts are logged or stored</strong> on the proxy server.</li>
+                        <li><strong>Metrics & Logging</strong>: The local database only stores system operational metadata: upstream keys, client keys, session keys, and aggregate metrics (success rate, token consumption, latency).</li>
+                        <li><strong>Session Security</strong>: Session tokens are database-persisted and valid for 24 hours to secure admin access.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>Terms of Service</h4>
+                    <ul style="padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; list-style-type: disc; margin-top: 0.5rem;">
+                        <li><strong>Cost Liability</strong>: You are solely responsible for any charges incurred on the upstream keys added to the rotation pool.</li>
+                        <li><strong>Use at Your Own Risk</strong>: This software is provided "as is", without warranty of any kind. Authors are not responsible for account suspensions, upstream rate limits, or service blocks.</li>
+                        <li><strong>Provider Compliance</strong>: You must comply with the terms of service of OpenAI, Google Gemini, and Anthropic Claude when using this proxy.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="landing.js"></script>
+</body>
+</html>

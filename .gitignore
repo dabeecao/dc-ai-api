@@ -1,0 +1,16 @@
+# Env config
+.env
+
+# SQLite Database
+*.db
+*.db-*
+
+# System files
+.DS_Store
+dev.md
+
+# Build outputs
+frontend/dist
+dist/
+dc-ai-api
+node_modules

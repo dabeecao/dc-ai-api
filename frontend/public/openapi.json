@@ -1,0 +1,288 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "DC AI API Proxy",
+    "description": "A high-performance, resilient API Proxy built in Go to rotate multiple AI API keys, distribute request load, perform automatic key health checks, and provide native protocol translations for OpenAI, Gemini Native, and Claude formats.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current Proxy Server"
+    }
+  ],
+  "paths": {
+    "/v1/models": {
+      "get": {
+        "summary": "Retrieve Merged Model Catalog",
+        "description": "Returns the unique union of all selected models configured on all active upstream keys in the proxy rotation pool.",
+        "security": [
+          { "BearerAuth": [] },
+          { "ApiKeyAuth": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved merged model list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": { "type": "string", "example": "list" },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "example": "gemini-2.5-flash" },
+                          "object": { "type": "string", "example": "model" },
+                          "created": { "type": "integer", "example": 1677610602 },
+                          "owned_by": { "type": "string", "example": "proxy" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized - Missing or invalid client proxy key." }
+        }
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "summary": "OpenAI-Compatible Chat Completions",
+        "description": "Send a chat completion request to the proxy. The proxy automatically routes the request using a stateless round-robin rotation to a matching active key that supports the model.",
+        "security": [
+          { "BearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["model", "messages"],
+                "properties": {
+                  "model": { "type": "string", "example": "gemini-2.5-flash" },
+                  "messages": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": { "type": "string", "enum": ["system", "user", "assistant"], "example": "user" },
+                        "content": { "type": "string", "example": "Hello!" }
+                      }
+                    }
+                  },
+                  "stream": { "type": "boolean", "default": false, "example": false },
+                  "temperature": { "type": "number", "default": 1.0 },
+                  "max_tokens": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Completion succeeded."
+          },
+          "401": { "description": "Unauthorized." },
+          "502": { "description": "Bad Gateway - Upstream failure or no keys available." }
+        }
+      }
+    },
+    "/v1/messages": {
+      "post": {
+        "summary": "Claude Native Messages",
+        "description": "Send a native Anthropic Claude messages payload. The proxy filters active keys supporting Claude format, injects the correct `anthropic-version` header, and rotates keys.",
+        "security": [
+          { "ApiKeyAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["model", "max_tokens", "messages"],
+                "properties": {
+                  "model": { "type": "string", "example": "claude-3-5-sonnet-latest" },
+                  "max_tokens": { "type": "integer", "example": 1024 },
+                  "messages": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": { "type": "string", "enum": ["user", "assistant"], "example": "user" },
+                        "content": { "type": "string", "example": "Write a hello world program." }
+                      }
+                    }
+                  },
+                  "stream": { "type": "boolean", "default": false, "example": false }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Message generated successfully."
+          },
+          "401": { "description": "Unauthorized." },
+          "502": { "description": "Bad Gateway." }
+        }
+      }
+    },
+    "/v1beta/models/{model}:generateContent": {
+      "post": {
+        "summary": "Gemini Native Content Generation",
+        "description": "Send a native Google Gemini payload. The proxy intercepts, validates client keys, cleanses/sanitizes nested parameter constraints (such as `anyOf`, `allOf`, `enumDescriptions`), and routes using native endpoints.",
+        "parameters": [
+          {
+            "name": "model",
+            "in": "path",
+            "required": true,
+            "description": "Model identifier",
+            "schema": { "type": "string", "example": "gemini-2.5-flash" }
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "required": false,
+            "description": "Client proxy key if not provided in headers",
+            "schema": { "type": "string" }
+          }
+        ],
+        "security": [
+          { "GeminiKeyHeaderAuth": [] },
+          { "GeminiKeyQueryAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["contents"],
+                "properties": {
+                  "contents": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": { "type": "string", "example": "user" },
+                        "parts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "text": { "type": "string", "example": "Tell me a joke." }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Content generated successfully."
+          },
+          "401": { "description": "Unauthorized." }
+        }
+      }
+    },
+    "/v1beta/models/{model}:streamGenerateContent": {
+      "post": {
+        "summary": "Gemini Native Streaming Generation",
+        "description": "Generates streaming content using the Google Gemini Native format. Stream response is flushed in real-time.",
+        "parameters": [
+          {
+            "name": "model",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "gemini-2.5-flash" }
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "security": [
+          { "GeminiKeyHeaderAuth": [] },
+          { "GeminiKeyQueryAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["contents"],
+                "properties": {
+                  "contents": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "parts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "text": { "type": "string", "example": "Write a short poem." }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Streaming content generated successfully."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Proxy client authorization key, prefixed with `dc_` or custom format."
+      },
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "Proxy client authorization key in header."
+      },
+      "GeminiKeyHeaderAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-goog-api-key",
+        "description": "Proxy client authorization key for Gemini header."
+      },
+      "GeminiKeyQueryAuth": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "key",
+        "description": "Proxy client authorization key in URL query string."
+      }
+    }
+  }
+}

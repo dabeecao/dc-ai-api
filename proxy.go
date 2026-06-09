@@ -1429,4 +1429,3 @@ func restoreThoughtSignatures(bodyBytes []byte) []byte {
 	}
 	return bodyBytes
 }
-

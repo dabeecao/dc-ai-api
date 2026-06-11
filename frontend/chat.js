@@ -946,6 +946,37 @@ function renderImagePreviews() {
 function createNewSession(initialMsg = '') {
     const lang = localStorage.getItem(KEYS.LANGUAGE) || 'vi';
     const t = TRANSLATIONS[lang];
+
+    // Find if there is already an empty session in the list
+    const emptySession = activeSessions.find(s => s.messages.length === 0);
+    if (emptySession) {
+        // Move it to the top of the list if it's not already there
+        const idx = activeSessions.indexOf(emptySession);
+        if (idx > 0) {
+            activeSessions.splice(idx, 1);
+            activeSessions.unshift(emptySession);
+        }
+        
+        // Reset or set the title
+        emptySession.title = initialMsg ? (initialMsg.slice(0, 30) + (initialMsg.length > 30 ? '...' : '')) : t.newChat;
+        emptySession.timestamp = Date.now();
+        
+        saveSessions();
+        currentSessionId = emptySession.id;
+        localStorage.setItem(KEYS.CURRENT_SESSION_ID, currentSessionId);
+        
+        renderSessionsList();
+        loadSession(currentSessionId);
+        
+        // Refocus chat input
+        if (dom.chatInput) {
+            dom.chatInput.focus();
+        }
+        
+        return emptySession;
+    }
+
+    // Otherwise, create a new one
     const newSession = {
         id: 'session_' + Date.now(),
         title: initialMsg ? (initialMsg.slice(0, 30) + (initialMsg.length > 30 ? '...' : '')) : t.newChat,
@@ -961,6 +992,12 @@ function createNewSession(initialMsg = '') {
 
     renderSessionsList();
     loadSession(currentSessionId);
+    
+    // Refocus chat input
+    if (dom.chatInput) {
+        dom.chatInput.focus();
+    }
+
     return newSession;
 }
 
@@ -1102,8 +1139,7 @@ function deleteSession(sessionId) {
 
 function checkSendButtonState() {
     const hasText = dom.chatInput.value.trim().length > 0;
-    const hasImage = selectedImages.length > 0;
-    const hasInput = hasText || hasImage;
+    const hasInput = hasText;
     const hasModel = selectedModel !== '';
     const sendIcon = document.getElementById('sendIcon');
 
@@ -1693,8 +1729,22 @@ async function sendMessage(prompt, isRegenerate = false) {
     }
     if (searchEnabledThisTime) {
         try {
-            textContainer.innerHTML = `<div class="typing-indicator" style="font-size:0.85rem; color:var(--text-muted); display:flex; align-items:center; gap:0.5rem;"><i data-lucide="search" class="search-icon pulsing" style="width:1rem;height:1rem;"></i> ${lang === 'vi' ? 'Đang tìm kiếm thông tin trên Web...' : 'Searching the Web...'}</div>`;
+            textContainer.innerHTML = `
+                <div class="search-progress-box">
+                    <div class="search-progress-header">
+                        <i data-lucide="search" class="search-icon pulsing" style="width:1rem;height:1rem;color:var(--color-primary);"></i>
+                        <span>${lang === 'vi' ? 'Đang tìm kiếm thông tin trên Web...' : 'Searching the Web...'}</span>
+                    </div>
+                    <div class="search-progress-steps">
+                        <div class="search-progress-step active" id="step-connect">
+                            <span class="step-dot pulsing"></span>
+                            <span>${lang === 'vi' ? 'Đang kết nối tới Tavily & Wikipedia...' : 'Connecting to Tavily & Wikipedia...'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
             createIconsSafe();
+            scrollToBottom(false);
 
             const searchUrl = `${baseUrl}/api/search?q=${encodeURIComponent(prompt)}`;
             const searchHeaders = {
@@ -1707,20 +1757,88 @@ async function sendMessage(prompt, isRegenerate = false) {
             const searchResponse = await fetch(searchUrl, { headers: searchHeaders });
             if (searchResponse.ok) {
                 const results = await searchResponse.json();
+
+                const connectEl = document.getElementById('step-connect');
+                if (connectEl) {
+                    connectEl.classList.remove('active');
+                    connectEl.classList.add('done');
+                    const dot = connectEl.querySelector('.step-dot');
+                    if (dot) dot.className = 'step-dot done';
+                    connectEl.querySelector('span:last-child').textContent = lang === 'vi' ? 'Đã kết nối nguồn dữ liệu' : 'Connected to data sources';
+                }
+
                 if (results && results.length > 0) {
                     searchResultsList = results;
+                    const stepsContainer = textContainer.querySelector('.search-progress-steps');
+                    
+                    // Limit animation to max 3 results to keep it relatively fast but premium
+                    const itemsToAnimate = results.slice(0, 3);
+                    for (let i = 0; i < itemsToAnimate.length; i++) {
+                        const res = itemsToAnimate[i];
+                        const stepId = `step-scan-${i}`;
+                        const stepEl = document.createElement('div');
+                        stepEl.className = 'search-progress-step active';
+                        stepEl.id = stepId;
+                        stepEl.innerHTML = `
+                            <span class="step-dot scanning"></span>
+                            <span>${lang === 'vi' ? 'Đang quét' : 'Scanning'}: <span class="step-title">${escapeHTML(res.title)}</span></span>
+                        `;
+                        stepsContainer.appendChild(stepEl);
+                        scrollToBottom(false);
+
+                        await new Promise(resolve => setTimeout(resolve, 450));
+
+                        const currentStep = document.getElementById(stepId);
+                        if (currentStep) {
+                            currentStep.classList.remove('active');
+                            currentStep.classList.add('done');
+                            const dot = currentStep.querySelector('.step-dot');
+                            if (dot) dot.className = 'step-dot done';
+                        }
+                    }
+
+                    const synthesizeEl = document.createElement('div');
+                    synthesizeEl.className = 'search-progress-step active';
+                    synthesizeEl.innerHTML = `
+                        <span class="step-dot pulsing"></span>
+                        <span>${lang === 'vi' ? 'Đang tổng hợp đối chiếu ngữ cảnh...' : 'Synthesizing grounding context...'}</span>
+                    `;
+                    stepsContainer.appendChild(synthesizeEl);
+                    scrollToBottom(false);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
                     searchResultsContext = `[THÔNG TIN TÌM KIẾM TỪ INTERNET]\n`;
                     results.forEach((res, i) => {
                         searchResultsContext += `[Nguồn ${i + 1}] Tiêu đề: ${res.title}\nLiên kết: ${res.url}\nTóm tắt: ${res.snippet}\n\n`;
                     });
                     searchResultsContext += `\n[HƯỚNG DẪN AI]: Hãy sử dụng thông tin từ Internet ở trên để trả lời câu hỏi dưới đây một cách chính xác và cập nhật nhất. Trích dẫn nguồn (như [Nguồn 1], [Nguồn 2]) khi cần thiết. Trả lời bằng ngôn ngữ mà người dùng hỏi.\n\n`;
+                } else {
+                    const noResultsEl = document.createElement('div');
+                    noResultsEl.className = 'search-progress-step';
+                    noResultsEl.innerHTML = `
+                        <span class="step-dot" style="background:var(--color-failed)"></span>
+                        <span>${lang === 'vi' ? 'Không tìm thấy kết quả phù hợp' : 'No matching results found'}</span>
+                    `;
+                    textContainer.querySelector('.search-progress-steps').appendChild(noResultsEl);
+                    scrollToBottom(false);
+                    await new Promise(resolve => setTimeout(resolve, 800));
                 }
+            } else {
+                const failedEl = document.getElementById('step-connect');
+                if (failedEl) {
+                    failedEl.querySelector('span:last-child').textContent = lang === 'vi' ? 'Không thể kết nối dịch vụ tìm kiếm' : 'Failed to query search service';
+                    const dot = failedEl.querySelector('.step-dot');
+                    if (dot) {
+                        dot.className = 'step-dot';
+                        dot.style.background = 'var(--color-failed)';
+                    }
+                }
+                await new Promise(resolve => setTimeout(resolve, 800));
             }
         } catch (err) {
             console.error('Failed to query search API:', err);
         }
 
-        // Restore standard typing indicator
         textContainer.innerHTML = `
             <div class="typing-indicator">
                 <div class="typing-dot"></div>

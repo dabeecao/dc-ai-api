@@ -1476,33 +1476,51 @@
             btnFetchModels.textContent = 'Fetching...';
             
             try {
-                const response = await fetch(`${host}/v1/models`, {
-                    headers: {
-                        'Authorization': `Bearer ${key}`
-                    }
-                });
+                let url = `${host}/v1/models`;
+                const headers = {};
+                
+                if (selectedProtocol === 'gemini') {
+                    url = `${host}/v1beta/models?key=${key}`;
+                } else if (selectedProtocol === 'claude') {
+                    headers['x-api-key'] = key;
+                    headers['anthropic-version'] = '2023-06-01';
+                } else {
+                    headers['Authorization'] = `Bearer ${key}`;
+                }
+                
+                const response = await fetch(url, { headers });
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 
                 const data = await response.json();
-                if (data && Array.isArray(data.data)) {
+                
+                let modelIds = [];
+                if (selectedProtocol === 'gemini') {
+                    if (data && Array.isArray(data.models)) {
+                        modelIds = data.models.map(m => m.name ? m.name.replace(/^models\//, '') : '').filter(Boolean);
+                    }
+                } else {
+                    if (data && Array.isArray(data.data)) {
+                        modelIds = data.data.map(m => m.id).filter(Boolean);
+                    }
+                }
+                
+                if (modelIds.length > 0) {
                     modelsDatalist.replaceChildren();
-                    data.data.forEach(m => {
-                        if (m && m.id) {
-                            const opt = document.createElement('option');
-                            opt.value = m.id;
-                            modelsDatalist.appendChild(opt);
-                        }
+                    modelIds.forEach(id => {
+                        const opt = document.createElement('option');
+                        opt.value = id;
+                        modelsDatalist.appendChild(opt);
                     });
-                    showToast(`Successfully fetched ${data.data.length} models.`, true);
-                    if (data.data.length > 0 && !data.data.some(m => m.id === inputModel.value)) {
-                        inputModel.value = data.data[0].id;
+                    showToast(`Successfully fetched ${modelIds.length} models.`, true);
+                    if (!modelIds.includes(inputModel.value)) {
+                        inputModel.value = modelIds[0];
                         generateCode();
                     }
                 } else {
-                    throw new Error('Invalid response format');
+                    throw new Error('No models found or invalid response format');
                 }
             } catch (error) {
                 console.error(error);

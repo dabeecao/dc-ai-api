@@ -7,7 +7,9 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -19,15 +21,6 @@ type SearchResult struct {
 	URL     string `json:"url"`
 }
 
-type WikiSearchResponse struct {
-	Query struct {
-		Search []struct {
-			Title   string `json:"title"`
-			Snippet string `json:"snippet"`
-			PageID  int    `json:"pageid"`
-		} `json:"search"`
-	} `json:"query"`
-}
 
 type TavilyResult struct {
 	URL     string  `json:"url"`
@@ -108,7 +101,7 @@ func stripHTML(input string) string {
 
 func queryWikipedia(query string, lang string) ([]SearchResult, error) {
 	client := &http.Client{Timeout: 5 * time.Second}
-	apiURL := fmt.Sprintf("https://%s.wikipedia.org/w/api.php?action=query&list=search&srsearch=%s&format=json&utf8=", lang, url.QueryEscape(query))
+	apiURL := fmt.Sprintf("https://%s.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=%s&gsrlimit=3&prop=extracts&exintro=1&explaintext=1&format=json&redirects=1", lang, url.QueryEscape(query))
 
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
@@ -126,25 +119,60 @@ func queryWikipedia(query string, lang string) ([]SearchResult, error) {
 		return nil, fmt.Errorf("Wikipedia HTTP %d", resp.StatusCode)
 	}
 
-	var wikiResp WikiSearchResponse
+	var wikiResp struct {
+		Query struct {
+			Pages map[string]struct {
+				PageID  int    `json:"pageid"`
+				Title   string `json:"title"`
+				Index   int    `json:"index"`
+				Extract string `json:"extract"`
+			} `json:"pages"`
+		} `json:"query"`
+	}
+
 	if err := json.NewDecoder(resp.Body).Decode(&wikiResp); err != nil {
 		return nil, err
 	}
 
+	type pageItem struct {
+		title   string
+		index   int
+		extract string
+	}
+
+	pages := []pageItem{}
+	for _, p := range wikiResp.Query.Pages {
+		pages = append(pages, pageItem{
+			title:   p.Title,
+			index:   p.Index,
+			extract: p.Extract,
+		})
+	}
+
+	sort.Slice(pages, func(i, j int) bool {
+		return pages[i].index < pages[j].index
+	})
+
 	results := []SearchResult{}
-	for i, item := range wikiResp.Query.Search {
-		if i >= 3 { // limit to top 3
-			break
+	for _, page := range pages {
+		snippet := stripHTML(page.extract)
+		if snippet == "" {
+			snippet = stripHTML(page.title)
 		}
-		snippet := stripHTML(item.Snippet)
-		if snippet != "" {
-			itemURL := fmt.Sprintf("https://%s.wikipedia.org/wiki/%s", lang, url.PathEscape(strings.ReplaceAll(item.Title, " ", "_")))
-			results = append(results, SearchResult{
-				Title:   item.Title + " (Wikipedia " + strings.ToUpper(lang) + ")",
-				Snippet: snippet,
-				URL:     itemURL,
-			})
+		cleanedExt := strings.ReplaceAll(snippet, "\n", " ")
+		runes := []rune(cleanedExt)
+		if len(runes) > 1000 {
+			snippet = string(runes[:1000]) + "..."
+		} else {
+			snippet = cleanedExt
 		}
+
+		itemURL := fmt.Sprintf("https://%s.wikipedia.org/wiki/%s", lang, url.PathEscape(strings.ReplaceAll(page.title, " ", "_")))
+		results = append(results, SearchResult{
+			Title:   page.title + " (Wikipedia " + strings.ToUpper(lang) + ")",
+			Snippet: snippet,
+			URL:     itemURL,
+		})
 	}
 
 	return results, nil
@@ -211,37 +239,78 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 
 	results := []SearchResult{}
 
-	tavilyAPIKey := os.Getenv("TAVILY_API_KEY")
-	if tavilyAPIKey != "" {
-		tavilyResults, err := queryTavily(tavilyAPIKey, query)
-		if err == nil && len(tavilyResults) > 0 {
-			results = append(results, tavilyResults...)
-		} else {
-			if err != nil {
-				LogWarn("Tavily search error: %v, falling back to Wikipedia", err)
-			} else {
-				LogWarn("Tavily returned empty results, falling back to Wikipedia")
-			}
-			wikiVi, err := queryWikipedia(query, "vi")
-			if err == nil {
-				results = append(results, wikiVi...)
-			}
+	var tavilyResults []SearchResult
+	var wikiViResults []SearchResult
+	var wikiEnResults []SearchResult
+	var wg sync.WaitGroup
 
-			wikiEn, err := queryWikipedia(query, "en")
+	tavilyAPIKey := os.Getenv("TAVILY_API_KEY")
+
+	// Query Tavily if configured
+	if tavilyAPIKey != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			res, err := queryTavily(tavilyAPIKey, query)
 			if err == nil {
-				results = append(results, wikiEn...)
+				tavilyResults = res
+			} else {
+				LogWarn("Tavily search error: %v", err)
 			}
+		}()
+	}
+
+	// Always query Wikipedia (vi) concurrently
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		res, err := queryWikipedia(query, "vi")
+		if err == nil {
+			wikiViResults = res
+		} else {
+			LogWarn("Wikipedia (vi) search error: %v", err)
+		}
+	}()
+
+	// Always query Wikipedia (en) concurrently
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		res, err := queryWikipedia(query, "en")
+		if err == nil {
+			wikiEnResults = res
+		} else {
+			LogWarn("Wikipedia (en) search error: %v", err)
+		}
+	}()
+
+	wg.Wait()
+
+	// Merge results: Tavily first, then supplementary Wikipedia (vi) and (en)
+	if len(tavilyResults) > 0 {
+		results = append(results, tavilyResults...)
+
+		// Add up to 3 Wikipedia results as supplementary grounding details
+		added := 0
+		maxExtraWiki := 3
+		for _, r := range wikiViResults {
+			if added >= maxExtraWiki {
+				break
+			}
+			results = append(results, r)
+			added++
+		}
+		for _, r := range wikiEnResults {
+			if added >= maxExtraWiki {
+				break
+			}
+			results = append(results, r)
+			added++
 		}
 	} else {
-		wikiVi, err := queryWikipedia(query, "vi")
-		if err == nil {
-			results = append(results, wikiVi...)
-		}
-
-		wikiEn, err := queryWikipedia(query, "en")
-		if err == nil {
-			results = append(results, wikiEn...)
-		}
+		// If Tavily is not configured or returned no results, use all Wikipedia results
+		results = append(results, wikiViResults...)
+		results = append(results, wikiEnResults...)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -285,6 +285,7 @@ body {
     background-color: transparent;
     position: relative;
     height: 100%;
+    min-width: 0;
 }
 
 /* Main Header */
@@ -423,6 +424,7 @@ body {
     flex-direction: column;
     gap: 1.5rem;
     scroll-behavior: smooth;
+    min-width: 0;
 }
 
 /* Empty State */
@@ -559,6 +561,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
+    min-width: 0;
 }
 
 .message-wrapper.user .message-content-box {
@@ -577,7 +580,12 @@ body {
     font-size: 0.875rem;
     line-height: 1.55;
     word-wrap: break-word;
+    word-break: break-word;
     position: relative;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden !important;
+    overflow-y: hidden;
 }
 
 .message-wrapper.assistant .message-bubble {
@@ -651,10 +659,23 @@ body {
     font-style: italic;
 }
 .message-bubble table {
+    display: block !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
     border-collapse: collapse;
-    width: 100%;
     margin: 0.75rem 0;
     font-size: 0.825rem;
+}
+.message-bubble table::-webkit-scrollbar {
+    height: 4px;
+}
+.message-bubble table::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}
+.message-bubble table::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
 }
 .message-bubble th, .message-bubble td {
     border: 1px solid var(--border-color);
@@ -663,6 +684,62 @@ body {
 .message-bubble th {
     background: rgba(255, 255, 255, 0.03);
     font-weight: 600;
+}
+
+/* KaTeX LaTeX Equations Overflow and Sizing Fixes */
+.message-bubble .katex-display {
+    margin: 0.75rem 0;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 0.5rem;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    max-width: 100% !important;
+    text-align: center;
+    display: block !important;
+}
+
+.message-bubble .katex {
+    font-size: 1.05em;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    vertical-align: middle;
+    display: inline-block !important;
+}
+
+.message-bubble .katex-display .katex {
+    overflow-x: visible !important;
+    max-width: none !important;
+    display: inline-block !important;
+    padding: 0 !important;
+}
+
+.message-bubble .katex::-webkit-scrollbar,
+.message-bubble .katex-display::-webkit-scrollbar {
+    height: 4px;
+}
+
+.message-bubble .katex::-webkit-scrollbar-thumb,
+.message-bubble .katex-display::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}
+
+.message-bubble .katex::-webkit-scrollbar-thumb:hover,
+.message-bubble .katex-display::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 768px) {
+    .message-bubble .katex-display {
+        font-size: 0.9em;
+        padding: 0.5rem;
+    }
+    .message-bubble .katex {
+        font-size: 0.95em;
+    }
 }
 .message-bubble h1,
 .message-bubble h2,
@@ -1694,4 +1771,88 @@ body {
     text-decoration: none;
 }
 
+/* Search progress box */
+.search-progress-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding: 0.5rem 0.25rem;
+    color: var(--text-secondary);
+    width: 100%;
+}
 
+.search-progress-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.search-progress-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding-left: 1rem;
+    border-left: 1px solid var(--border-color);
+    margin-left: 0.45rem;
+    margin-top: 0.35rem;
+}
+
+.search-progress-step {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    animation: stepEntrance 0.3s ease-out;
+}
+
+@keyframes stepEntrance {
+    from { opacity: 0; transform: translateX(-5px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.search-progress-step.active {
+    color: var(--text-secondary);
+}
+
+.search-progress-step.done {
+    color: var(--text-muted);
+}
+
+.search-progress-step .step-title {
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.step-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: var(--transition-fast);
+}
+
+.step-dot.pulsing {
+    background: var(--color-primary);
+    box-shadow: 0 0 8px var(--color-primary);
+    animation: dotPulse 1s infinite alternate;
+}
+
+.step-dot.scanning {
+    background: var(--color-violet);
+    box-shadow: 0 0 8px var(--color-violet);
+    animation: dotPulse 0.8s infinite alternate;
+}
+
+.step-dot.done {
+    background: var(--color-active);
+    box-shadow: 0 0 6px var(--color-active);
+}
+
+@keyframes dotPulse {
+    from { transform: scale(0.85); opacity: 0.5; }
+    to { transform: scale(1.15); opacity: 1; }
+}

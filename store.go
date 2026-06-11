@@ -183,6 +183,7 @@ func NewStore(dbPath string) (*Store, error) {
 	_, _ = db.Exec("ALTER TABLE upstream_keys ADD COLUMN total_tokens INTEGER DEFAULT 0")
 	_, _ = db.Exec("ALTER TABLE upstream_keys ADD COLUMN last_latency_ms INTEGER DEFAULT 0")
 	_, _ = db.Exec("ALTER TABLE upstream_keys ADD COLUMN avg_latency_ms INTEGER DEFAULT 0")
+	_, _ = db.Exec("ALTER TABLE upstream_keys ADD COLUMN consecutive_failures INTEGER DEFAULT 0")
 
 	// Add missing columns to client_keys
 	_, _ = db.Exec("ALTER TABLE client_keys ADD COLUMN prompt_tokens INTEGER DEFAULT 0")
@@ -468,9 +469,11 @@ func (s *Store) UpdateKeyStatus(id string, status string) error {
 
 		res, err := s.db.Exec(`
 			UPDATE upstream_keys 
-			SET status = ?, error_reason = CASE WHEN ? = 'active' THEN '' ELSE error_reason END
+			SET status = ?, 
+				error_reason = CASE WHEN ? = 'active' THEN '' ELSE error_reason END,
+				consecutive_failures = CASE WHEN ? = 'active' THEN 0 ELSE consecutive_failures END
 			WHERE id = ?
-		`, status, status, id)
+		`, status, status, status, id)
 		if err != nil {
 			return err
 		}
@@ -720,6 +723,7 @@ func (s *Store) RecordSuccess(id string, promptTokens int64, completionTokens in
 				SET success_count = success_count + 1,
 					status = CASE WHEN status IN ('failed', 'cooldown') THEN 'active' ELSE status END,
 					error_reason = '',
+					consecutive_failures = 0,
 					prompt_tokens = prompt_tokens + ?,
 					completion_tokens = completion_tokens + ?,
 					total_tokens = total_tokens + ?,
@@ -733,6 +737,7 @@ func (s *Store) RecordSuccess(id string, promptTokens int64, completionTokens in
 				SET success_count = success_count + 1,
 					status = CASE WHEN status IN ('failed', 'cooldown') THEN 'active' ELSE status END,
 					error_reason = '',
+					consecutive_failures = 0,
 					prompt_tokens = prompt_tokens + ?,
 					completion_tokens = completion_tokens + ?,
 					total_tokens = total_tokens + ?
@@ -754,32 +759,59 @@ func (s *Store) RecordFailure(id string, reason string, statusCode int) {
 		var status string
 		var cooldownUntilStr interface{}
 
+		// Retrieve key label and consecutive failures for log snapshotting and cooldown backoff
+		var label string
+		var consecutiveFailures int
+		err := s.db.QueryRow("SELECT label, consecutive_failures FROM upstream_keys WHERE id = ?", id).Scan(&label, &consecutiveFailures)
+		if err != nil {
+			label = "Deleted Key (" + id + ")"
+			consecutiveFailures = 0
+		}
+		currentFailures := consecutiveFailures + 1
+
+		// Determine status and cooldown
+		status = ""
+
+		// Cap currentFailures to prevent integer overflow during exponentiation
+		calcFailures := currentFailures
+		if calcFailures > 8 {
+			calcFailures = 8
+		}
+		multiplier := int64(1) << (calcFailures - 1)
+
+		isCooldownError := false
+		var cooldownDuration time.Duration
+
 		switch statusCode {
 		case 401, 403:
-			status = "failed"
+			isCooldownError = true
+			secs := 300 * multiplier // 5 minutes base
+			if secs > 3600 {
+				secs = 3600 // max 1 hour
+			}
+			cooldownDuration = time.Duration(secs) * time.Second
 		case 429:
-			status = "cooldown"
-			t := now.Add(30 * time.Second)
-			cooldownUntilStr = formatTimeUTC(t)
-		case 500, 502, 503, 504:
-			// Temporary server overloads/errors: 15-second cooldown
-			status = "cooldown"
-			t := now.Add(15 * time.Second)
-			cooldownUntilStr = formatTimeUTC(t)
+			isCooldownError = true
+			secs := 30 * multiplier // 30 seconds base
+			if secs > 1800 {
+				secs = 1800 // max 30 minutes
+			}
+			cooldownDuration = time.Duration(secs) * time.Second
 		default:
-			// For network timeouts or connection-level errors (represented by status code 0 or other 5xx status codes)
 			if statusCode == 0 || statusCode >= 500 {
-				status = "cooldown"
-				t := now.Add(15 * time.Second)
-				cooldownUntilStr = formatTimeUTC(t)
+				isCooldownError = true
+				secs := 15 * multiplier // 15 seconds base
+				if secs > 900 {
+					secs = 900 // max 15 minutes
+				}
+				cooldownDuration = time.Duration(secs) * time.Second
 			}
 		}
 
-		// Retrieve key label for log snapshotting
-		var label string
-		err := s.db.QueryRow("SELECT label FROM upstream_keys WHERE id = ?", id).Scan(&label)
-		if err != nil {
-			label = "Deleted Key (" + id + ")"
+		if isCooldownError {
+			status = "cooldown"
+			t := now.Add(cooldownDuration)
+			cooldownUntilStr = formatTimeUTC(t)
 		}
 
 		// Insert error log using parameterized query
@@ -808,11 +840,12 @@ func (s *Store) RecordFailure(id string, reason string, statusCode int) {
 			_, err = s.db.Exec(`
 				UPDATE upstream_keys
 				SET failure_count = failure_count + 1,
+					consecutive_failures = ?,
 					error_reason = ?,
 					status = ?,
 					cooldown_until = ?
 				WHERE id = ?
-			`, reason, status, cooldownUntilStr, id)
+			`, currentFailures, reason, status, cooldownUntilStr, id)
 			if err != nil {
 				LogError("Failed updating status for failed key ID %s: %v", id, err)
 			}
@@ -820,9 +853,10 @@ func (s *Store) RecordFailure(id string, reason string, statusCode int) {
 			_, err = s.db.Exec(`
 				UPDATE upstream_keys
 				SET failure_count = failure_count + 1,
+					consecutive_failures = ?,
 					error_reason = ?
 				WHERE id = ?
-			`, reason, id)
+			`, currentFailures, reason, id)
 			if err != nil {
 				LogError("Failed recording failure for ID %s: %v", id, err)
 			}
@@ -1233,7 +1267,10 @@ func (s *Store) UpdateKeyDetails(id, label, key, upstreamURL string, supportsOpe
 
 		res, err := s.db.Exec(`
 			UPDATE upstream_keys 
-			SET label = ?, key = ?, upstream_url = ?, supports_openai = ?, supports_gemini = ?, supports_claude = ?, available_models = ?, selected_models = ?
+			SET label = ?, key = ?, upstream_url = ?, supports_openai = ?, supports_gemini = ?, supports_claude = ?, available_models = ?, selected_models = ?,
+				status = CASE WHEN status IN ('failed', 'cooldown') THEN 'active' ELSE status END,
+				error_reason = CASE WHEN status IN ('failed', 'cooldown') THEN '' ELSE error_reason END,
+				consecutive_failures = 0
 			WHERE id = ?
 		`, label, key, upstreamURL, supportsOpenAI, supportsGemini, supportsClaude, availableModels, selectedModels, id)
 		if err != nil {
@@ -1300,13 +1337,23 @@ func (s *Store) GenerateAndCreateSession() (string, error) {
 	return token, nil
 }
 
-// ModelExists checks if the given model exists in the selected_models list of any configured upstream key.
-func (s *Store) ModelExists(model string) (bool, error) {
+// ModelExists checks if the given model exists in the selected_models list of any configured upstream key that supports the requested API type.
+func (s *Store) ModelExists(model string, apiType string) (bool, error) {
 	if model == "" {
 		return true, nil
 	}
 
-	rows, err := s.db.Query("SELECT selected_models FROM upstream_keys")
+	var query string
+	switch apiType {
+	case "gemini":
+		query = "SELECT selected_models FROM upstream_keys WHERE supports_gemini = 1"
+	case "claude":
+		query = "SELECT selected_models FROM upstream_keys WHERE supports_claude = 1"
+	default:
+		query = "SELECT selected_models FROM upstream_keys WHERE supports_openai = 1"
+	}
+
+	rows, err := s.db.Query(query)
 	if err != nil {
 		return false, err
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 type AdminServer struct {
@@ -416,8 +419,11 @@ func (a *AdminServer) TestKeyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type FetchModelsRequest struct {
-	Key         string `json:"key"`
-	UpstreamURL string `json:"upstream_url"`
+	Key            string `json:"key"`
+	UpstreamURL    string `json:"upstream_url"`
+	SupportsOpenAI *bool  `json:"supports_openai"`
+	SupportsGemini *bool  `json:"supports_gemini"`
+	SupportsClaude *bool  `json:"supports_claude"`
 }
 
 type FetchModelsResponse struct {
@@ -427,6 +433,22 @@ type FetchModelsResponse struct {
 	SupportsClaude bool     `json:"supports_claude"`
 	Models         []string `json:"models"`
 	Error          string   `json:"error,omitempty"`
+}
+
+type modelsCacheEntry struct {
+	response FetchModelsResponse
+	expiry   time.Time
+}
+
+var (
+	modelsCache   = make(map[string]modelsCacheEntry)
+	modelsCacheMu sync.RWMutex
+)
+
+func getModelsCacheKey(key, url string) string {
+	h := sha256.New()
+	h.Write([]byte(key + "||" + url))
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 func (a *AdminServer) FetchModelsHandler(w http.ResponseWriter, r *http.Request) {
@@ -453,6 +475,17 @@ func (a *AdminServer) FetchModelsHandler(w http.ResponseWriter, r *http.Request)
 			upstreamURL = "https://api.b.ai"
 		}
 	}
+
+	cacheKey := getModelsCacheKey(req.Key, upstreamURL)
+	modelsCacheMu.RLock()
+	cached, found := modelsCache[cacheKey]
+	modelsCacheMu.RUnlock()
+
+	if found && time.Now().Before(cached.expiry) {
+		LogInfo("Returning cached models for upstream key prefix: %s", maskKey(req.Key))
+		writeJSON(w, http.StatusOK, cached.response)
+		return
+	}
 	upstreamURL = strings.TrimSuffix(upstreamURL, "/")
 	if strings.HasSuffix(upstreamURL, "/v1") {
 		upstreamURL = strings.TrimSuffix(upstreamURL, "/v1")
@@ -466,39 +499,45 @@ func (a *AdminServer) FetchModelsHandler(w http.ResponseWriter, r *http.Request)
 	modelMap := make(map[string]bool)
 	var models []string
 
+	runOpenAI := req.SupportsOpenAI == nil || *req.SupportsOpenAI
+	runGemini := req.SupportsGemini == nil || *req.SupportsGemini
+	runClaude := req.SupportsClaude == nil || *req.SupportsClaude
+
 	// 1. Try OpenAI v1/models
-	openaiURL := upstreamURL + "/v1/models"
-	openaiReq, err := http.NewRequestWithContext(r.Context(), "GET", openaiURL, nil)
-	if err == nil {
-		openaiReq.Header.Set("Authorization", "Bearer "+req.Key)
-		openaiReq.Header.Set("x-api-key", req.Key)
-		resp, err := httpClient.Do(openaiReq)
+	if runOpenAI {
+		openaiURL := upstreamURL + "/v1/models"
+		openaiReq, err := http.NewRequestWithContext(r.Context(), "GET", openaiURL, nil)
 		if err == nil {
-			if resp.StatusCode != http.StatusOK {
-				resp.Body.Close()
-				openaiURLFallback := upstreamURL + "/models"
-				openaiReqFallback, errFallback := http.NewRequestWithContext(r.Context(), "GET", openaiURLFallback, nil)
-				if errFallback == nil {
-					openaiReqFallback.Header.Set("Authorization", "Bearer "+req.Key)
-					openaiReqFallback.Header.Set("x-api-key", req.Key)
-					resp, err = httpClient.Do(openaiReqFallback)
+			openaiReq.Header.Set("Authorization", "Bearer "+req.Key)
+			openaiReq.Header.Set("x-api-key", req.Key)
+			resp, err := httpClient.Do(openaiReq)
+			if err == nil {
+				if resp.StatusCode != http.StatusOK {
+					resp.Body.Close()
+					openaiURLFallback := upstreamURL + "/models"
+					openaiReqFallback, errFallback := http.NewRequestWithContext(r.Context(), "GET", openaiURLFallback, nil)
+					if errFallback == nil {
+						openaiReqFallback.Header.Set("Authorization", "Bearer "+req.Key)
+						openaiReqFallback.Header.Set("x-api-key", req.Key)
+						resp, err = httpClient.Do(openaiReqFallback)
+					}
 				}
 			}
-		}
-		if err == nil {
-			defer resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				var result struct {
-					Data []struct {
-						ID string `json:"id"`
-					} `json:"data"`
-				}
-				if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
-					supportsOpenAI = true
-					for _, m := range result.Data {
-						if m.ID != "" && !modelMap[m.ID] {
-							modelMap[m.ID] = true
-							models = append(models, m.ID)
+			if err == nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == http.StatusOK {
+					var result struct {
+						Data []struct {
+							ID string `json:"id"`
+						} `json:"data"`
+					}
+					if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
+						supportsOpenAI = true
+						for _, m := range result.Data {
+							if m.ID != "" && !modelMap[m.ID] {
+								modelMap[m.ID] = true
+								models = append(models, m.ID)
+							}
 						}
 					}
 				}
@@ -507,26 +546,28 @@ func (a *AdminServer) FetchModelsHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 2. Try Gemini Native v1beta/models
-	geminiURL := upstreamURL + "/v1beta/models?key=" + req.Key
-	geminiReq, err := http.NewRequestWithContext(r.Context(), "GET", geminiURL, nil)
-	if err == nil {
-		geminiReq.Header.Set("x-goog-api-key", req.Key)
-		resp, err := httpClient.Do(geminiReq)
+	if runGemini {
+		geminiURL := upstreamURL + "/v1beta/models?key=" + req.Key
+		geminiReq, err := http.NewRequestWithContext(r.Context(), "GET", geminiURL, nil)
 		if err == nil {
-			defer resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				var result struct {
-					Models []struct {
-						Name string `json:"name"`
-					} `json:"models"`
-				}
-				if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
-					supportsGemini = true
-					for _, m := range result.Models {
-						name := strings.TrimPrefix(m.Name, "models/")
-						if name != "" && !modelMap[name] {
-							modelMap[name] = true
-							models = append(models, name)
+			geminiReq.Header.Set("x-goog-api-key", req.Key)
+			resp, err := httpClient.Do(geminiReq)
+			if err == nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == http.StatusOK {
+					var result struct {
+						Models []struct {
+							Name string `json:"name"`
+						} `json:"models"`
+					}
+					if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
+						supportsGemini = true
+						for _, m := range result.Models {
+							name := strings.TrimPrefix(m.Name, "models/")
+							if name != "" && !modelMap[name] {
+								modelMap[name] = true
+								models = append(models, name)
+							}
 						}
 					}
 				}
@@ -534,57 +575,70 @@ func (a *AdminServer) FetchModelsHandler(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// 3. Try Claude Native v1/messages
 	// 3. Try Claude Native: use GET /v1/models (proper Anthropic endpoint)
-	claudeURL := upstreamURL + "/v1/models"
-	claudeReq, err := http.NewRequestWithContext(r.Context(), "GET", claudeURL, nil)
-	if err == nil {
-		claudeReq.Header.Set("x-api-key", req.Key)
-		claudeReq.Header.Set("anthropic-version", "2023-06-01")
-		resp, err := httpClient.Do(claudeReq)
+	if runClaude {
+		claudeURL := upstreamURL + "/v1/models"
+		claudeReq, err := http.NewRequestWithContext(r.Context(), "GET", claudeURL, nil)
 		if err == nil {
-			if resp.StatusCode != http.StatusOK {
-				resp.Body.Close()
-				claudeURLFallback := upstreamURL + "/models"
-				claudeReqFallback, errFallback := http.NewRequestWithContext(r.Context(), "GET", claudeURLFallback, nil)
-				if errFallback == nil {
-					claudeReqFallback.Header.Set("x-api-key", req.Key)
-					claudeReqFallback.Header.Set("anthropic-version", "2023-06-01")
-					resp, err = httpClient.Do(claudeReqFallback)
+			claudeReq.Header.Set("x-api-key", req.Key)
+			claudeReq.Header.Set("anthropic-version", "2023-06-01")
+			resp, err := httpClient.Do(claudeReq)
+			if err == nil {
+				if resp.StatusCode != http.StatusOK {
+					resp.Body.Close()
+					claudeURLFallback := upstreamURL + "/models"
+					claudeReqFallback, errFallback := http.NewRequestWithContext(r.Context(), "GET", claudeURLFallback, nil)
+					if errFallback == nil {
+						claudeReqFallback.Header.Set("x-api-key", req.Key)
+						claudeReqFallback.Header.Set("anthropic-version", "2023-06-01")
+						resp, err = httpClient.Do(claudeReqFallback)
+					}
 				}
 			}
-		}
-		if err == nil {
-			defer resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				supportsClaude = true
-				var result struct {
-					Data []struct {
-						ID string `json:"id"`
-					} `json:"data"`
-				}
-				if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
-					for _, m := range result.Data {
-						if m.ID != "" && !modelMap[m.ID] {
-							modelMap[m.ID] = true
-							models = append(models, m.ID)
-						}
-					}
-				}
-				// Fallback to well-known models if the endpoint returns no data
-				if len(result.Data) == 0 {
-					claudeModels := []string{
-						"claude-opus-4-5",
-						"claude-sonnet-4-5",
-						"claude-3-5-sonnet-20241022",
-						"claude-3-5-haiku-20241022",
-						"claude-3-5-sonnet-latest",
-						"claude-3-5-haiku-latest",
-					}
-					for _, m := range claudeModels {
-						if !modelMap[m] {
-							modelMap[m] = true
-							models = append(models, m)
+			if err == nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == http.StatusOK {
+					bodyBytes, readErr := io.ReadAll(resp.Body)
+					if readErr == nil {
+						var rawMap map[string]interface{}
+						if json.Unmarshal(bodyBytes, &rawMap) == nil {
+							// OpenAI model listing response contains `"object": "list"`.
+							// Claude Native /v1/models response does NOT.
+							if obj, ok := rawMap["object"].(string); ok && obj == "list" {
+								// This is OpenAI, not Claude!
+							} else {
+								supportsClaude = true
+								var result struct {
+									Data []struct {
+										ID string `json:"id"`
+									} `json:"data"`
+								}
+								if json.Unmarshal(bodyBytes, &result) == nil {
+									for _, m := range result.Data {
+										if m.ID != "" && !modelMap[m.ID] {
+											modelMap[m.ID] = true
+											models = append(models, m.ID)
+										}
+									}
+								}
+								// Fallback to well-known models if the endpoint returns no data
+								if len(result.Data) == 0 {
+									claudeModels := []string{
+										"claude-opus-4-5",
+										"claude-sonnet-4-5",
+										"claude-3-5-sonnet-20241022",
+										"claude-3-5-haiku-20241022",
+										"claude-3-5-sonnet-latest",
+										"claude-3-5-haiku-latest",
+									}
+									for _, m := range claudeModels {
+										if !modelMap[m] {
+											modelMap[m] = true
+											models = append(models, m)
+										}
+									}
+								}
+							}
 						}
 					}
 				}
@@ -604,13 +658,22 @@ func (a *AdminServer) FetchModelsHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, FetchModelsResponse{
+	respPayload := FetchModelsResponse{
 		Success:        true,
 		SupportsOpenAI: supportsOpenAI,
 		SupportsGemini: supportsGemini,
 		SupportsClaude: supportsClaude,
 		Models:         models,
-	})
+	}
+
+	modelsCacheMu.Lock()
+	modelsCache[cacheKey] = modelsCacheEntry{
+		response: respPayload,
+		expiry:   time.Now().Add(5 * time.Minute),
+	}
+	modelsCacheMu.Unlock()
+
+	writeJSON(w, http.StatusOK, respPayload)
 }
 
 func (a *AdminServer) GetSettingsHandler(w http.ResponseWriter, r *http.Request) {

@@ -273,10 +273,17 @@ fetchModelsBtn.addEventListener('click', async () => {
     showToast('Fetching and verifying models against upstream...', 'info');
 
     try {
+        const payload = { key, upstream_url };
+        if (apiSupportContainer.style.display !== 'none') {
+            payload.supports_openai = supportOpenAI.checked;
+            payload.supports_gemini = supportGemini.checked;
+            payload.supports_claude = supportClaude.checked;
+        }
+
         const res = await apiFetch('/admin/api/keys/fetch-models', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, upstream_url })
+            body: JSON.stringify(payload)
         });
 
         const data = await res.json();
@@ -612,10 +619,22 @@ settingsFetchModelsBtn.addEventListener('click', async () => {
     showToast('Fetching models for fallback upstream...', 'info');
 
     try {
+        const apiType = document.getElementById('settingsFallbackAPIType').value;
+        const payload = { key, upstream_url };
+        if (apiType === 'openai') {
+            payload.supports_openai = true;
+            payload.supports_gemini = false;
+            payload.supports_claude = false;
+        } else if (apiType === 'gemini') {
+            payload.supports_openai = false;
+            payload.supports_gemini = true;
+            payload.supports_claude = false;
+        }
+
         const res = await apiFetch('/admin/api/keys/fetch-models', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, upstream_url })
+            body: JSON.stringify(payload)
         });
 
         const data = await res.json();
@@ -1799,7 +1818,13 @@ editRefetchModelsBtn.addEventListener('click', async () => {
         const res = await apiFetch('/admin/api/keys/fetch-models', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, upstream_url })
+            body: JSON.stringify({
+                key,
+                upstream_url,
+                supports_openai: editSupportOpenAI.checked,
+                supports_gemini: editSupportGemini.checked,
+                supports_claude: editSupportClaude.checked
+            })
         });
 
         const data = await res.json();

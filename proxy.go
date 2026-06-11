@@ -89,6 +89,75 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// 1.1 Custom handler for GET /v1/models or /models to return union of selected models of active keys
 	if (r.URL.Path == "/v1/models" || r.URL.Path == "/models") && r.Method == http.MethodGet {
+		isClaudeReq := r.Header.Get("x-api-key") != "" || r.Header.Get("anthropic-version") != ""
+
+		if isClaudeReq {
+			if isGuest {
+				mergedModels := []interface{}{
+					map[string]interface{}{
+						"type":         "model",
+						"id":           "dc-ai-model",
+						"display_name": "DC AI Model",
+						"created_at":   "2024-10-22T00:00:00Z",
+					},
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"data":     mergedModels,
+					"has_more": false,
+				})
+				return
+			}
+			var mergedModels []interface{}
+			modelMap := make(map[string]bool)
+
+			activeKeys := p.store.ListKeys()
+			for _, k := range activeKeys {
+				if k.Status == "active" && k.SupportsClaude == 1 {
+					var models []string
+					if err := json.Unmarshal([]byte(k.SelectedModels), &models); err == nil {
+						for _, m := range models {
+							if m != "" {
+								normalized := cleanModelName(m)
+								if !modelMap[normalized] {
+									modelMap[normalized] = true
+									mergedModels = append(mergedModels, map[string]interface{}{
+										"type":         "model",
+										"id":           normalized,
+										"display_name": normalized,
+										"created_at":   "2024-10-22T00:00:00Z",
+									})
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if len(mergedModels) == 0 {
+				settings, err := p.store.GetSettings()
+				fallbackModel := "claude-3-5-sonnet-latest"
+				if err == nil && settings["fallback_model"] != "" {
+					fallbackModel = settings["fallback_model"]
+				}
+				mergedModels = append(mergedModels, map[string]interface{}{
+					"type":         "model",
+					"id":           fallbackModel,
+					"display_name": fallbackModel,
+					"created_at":   "2024-10-22T00:00:00Z",
+				})
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"data":     mergedModels,
+				"has_more": false,
+			})
+			return
+		}
+
 		if isGuest {
 			mergedModels := []interface{}{
 				map[string]interface{}{
@@ -111,7 +180,7 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		activeKeys := p.store.ListKeys()
 		for _, k := range activeKeys {
-			if k.Status == "active" {
+			if k.Status == "active" && k.SupportsOpenAI == 1 {
 				var models []string
 				if err := json.Unmarshal([]byte(k.SelectedModels), &models); err == nil {
 					for _, m := range models {
@@ -152,6 +221,75 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"object": "list",
 			"data":   mergedModels,
+		})
+		return
+	}
+
+	// 1.2 Custom handler for GET /v1beta/models to return Gemini native formatted list
+	if (r.URL.Path == "/v1beta/models" || r.URL.Path == "/v1beta/models/") && r.Method == http.MethodGet {
+		if isGuest {
+			mergedModels := []interface{}{
+				map[string]interface{}{
+					"name":        "models/dc-ai-model",
+					"version":     "v1beta",
+					"displayName": "DC AI Model",
+					"description": "Virtual model masked by the proxy.",
+					"supportedGenerationMethods": []string{"generateContent", "streamGenerateContent"},
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"models": mergedModels,
+			})
+			return
+		}
+		var mergedModels []interface{}
+		modelMap := make(map[string]bool)
+
+		activeKeys := p.store.ListKeys()
+		for _, k := range activeKeys {
+			if k.Status == "active" && k.SupportsGemini == 1 {
+				var models []string
+				if err := json.Unmarshal([]byte(k.SelectedModels), &models); err == nil {
+					for _, m := range models {
+						if m != "" {
+							normalized := cleanModelName(m)
+							if !modelMap[normalized] {
+								modelMap[normalized] = true
+								mergedModels = append(mergedModels, map[string]interface{}{
+									"name":        "models/" + normalized,
+									"version":     "v1beta",
+									"displayName": normalized,
+									"description": "Proxied Gemini model",
+									"supportedGenerationMethods": []string{"generateContent", "streamGenerateContent"},
+								})
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if len(mergedModels) == 0 {
+			settings, err := p.store.GetSettings()
+			fallbackModel := "gemini-2.5-flash"
+			if err == nil && settings["fallback_model"] != "" {
+				fallbackModel = settings["fallback_model"]
+			}
+			mergedModels = append(mergedModels, map[string]interface{}{
+				"name":        "models/" + fallbackModel,
+				"version":     "v1beta",
+				"displayName": fallbackModel,
+				"description": "Fallback Gemini model",
+				"supportedGenerationMethods": []string{"generateContent", "streamGenerateContent"},
+			})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"models": mergedModels,
 		})
 		return
 	}
@@ -378,7 +516,7 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fallbackAPIType := fallbackSettings["fallback_api_type"]
 
 	if requestedModel != "" {
-		exists, err := p.store.ModelExists(requestedModel)
+		exists, err := p.store.ModelExists(requestedModel, apiType)
 		if err != nil {
 			LogError("Failed to check if model exists in database: %v", err)
 		}
@@ -427,6 +565,14 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if isFallbackMode {
+			if fallbackKey == "" || fallbackUpstreamURL == "" {
+				LogWarn("Fallback activated but fallback key/URL is not configured.")
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadGateway)
+				w.Write([]byte(`{"error": {"message": "All active keys failed and fallback is not configured. Please contact the administrator.", "type": "server_error"}}`))
+				return
+			}
+
 			// Setup fallback key details
 			key = APIKey{
 				ID:          "",
@@ -436,7 +582,7 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			keyErr = nil
 
-			if fallbackAPIType != "" {
+			if fallbackAPIType != "" && fallbackAPIType != "auto" {
 				apiType = fallbackAPIType
 			}
 
@@ -695,6 +841,7 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			var completionTokens int64
+			hasExactCompletionTokens := false
 			buffer := make([]byte, 4096)
 			var residual []byte
 			for {
@@ -739,7 +886,23 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							dataContent := strings.TrimPrefix(lineStr, "data: ")
 							dataContent = strings.TrimSpace(dataContent)
 							if dataContent != "" && dataContent != "[DONE]" {
-								completionTokens += estimateTokensFromSSELine(dataContent, apiType)
+								est := estimateTokensFromSSELine(dataContent, apiType)
+
+								pT, cT, found := tryParseStreamUsage(line, apiType)
+								if found {
+									if pT > 0 {
+										promptTokens = pT
+									}
+									if cT > 0 {
+										completionTokens = cT
+										hasExactCompletionTokens = true
+									}
+								}
+
+								if !hasExactCompletionTokens {
+									completionTokens += est
+								}
+
 								if apiType == "openai" {
 									extractAndCacheThoughtSignatures(line)
 								}
@@ -1428,4 +1591,60 @@ func restoreThoughtSignatures(bodyBytes []byte) []byte {
 		}
 	}
 	return bodyBytes
+}
+
+func tryParseStreamUsage(line []byte, apiType string) (int64, int64, bool) {
+	trimmed := bytes.TrimSpace(line)
+	if bytes.HasPrefix(trimmed, []byte("data: ")) {
+		trimmed = bytes.TrimPrefix(trimmed, []byte("data: "))
+		trimmed = bytes.TrimSpace(trimmed)
+	}
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("[DONE]")) {
+		return 0, 0, false
+	}
+
+	switch apiType {
+	case "gemini":
+		var g struct {
+			UsageMetadata *struct {
+				PromptTokenCount     int64 `json:"promptTokenCount"`
+				CandidatesTokenCount int64 `json:"candidatesTokenCount"`
+			} `json:"usageMetadata"`
+		}
+		if err := json.Unmarshal(trimmed, &g); err == nil && g.UsageMetadata != nil {
+			return g.UsageMetadata.PromptTokenCount, g.UsageMetadata.CandidatesTokenCount, true
+		}
+	case "claude":
+		var ms struct {
+			Type    string `json:"type"`
+			Message *struct {
+				Usage *struct {
+					InputTokens int64 `json:"input_tokens"`
+				} `json:"usage"`
+			} `json:"message"`
+		}
+		if err := json.Unmarshal(trimmed, &ms); err == nil && ms.Type == "message_start" && ms.Message != nil && ms.Message.Usage != nil {
+			return ms.Message.Usage.InputTokens, 0, true
+		}
+		var md struct {
+			Type  string `json:"type"`
+			Usage *struct {
+				OutputTokens int64 `json:"output_tokens"`
+			} `json:"usage"`
+		}
+		if err := json.Unmarshal(trimmed, &md); err == nil && md.Type == "message_delta" && md.Usage != nil {
+			return 0, md.Usage.OutputTokens, true
+		}
+	default: // openai
+		var o struct {
+			Usage *struct {
+				PromptTokens     int64 `json:"prompt_tokens"`
+				CompletionTokens int64 `json:"completion_tokens"`
+			} `json:"usage"`
+		}
+		if err := json.Unmarshal(trimmed, &o); err == nil && o.Usage != nil {
+			return o.Usage.PromptTokens, o.Usage.CompletionTokens, true
+		}
+	}
+	return 0, 0, false
 }

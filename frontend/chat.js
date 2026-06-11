@@ -1881,6 +1881,7 @@ async function sendMessage(prompt, isRegenerate = false) {
     checkSendButtonState();
 
     let assistantResponseText = '';
+    let inThinkingBlock = false;
 
     try {
         const response = await fetch(`${baseUrl}/v1/chat/completions`, {
@@ -1929,13 +1930,32 @@ async function sendMessage(prompt, isRegenerate = false) {
                     const dataStr = cleanLine.slice(6);
                     try {
                         const parsed = JSON.parse(dataStr);
-                        const token = parsed.choices?.[0]?.delta?.content || '';
+                        const delta = parsed.choices?.[0]?.delta;
+                        const token = delta?.content || '';
+                        const reasoningToken = delta?.reasoning_content || delta?.reasoning || delta?.thinking || '';
+
+                        let addedText = '';
+                        if (reasoningToken) {
+                            if (!inThinkingBlock) {
+                                addedText += '<think>';
+                                inThinkingBlock = true;
+                            }
+                            addedText += reasoningToken;
+                        }
                         if (token) {
+                            if (inThinkingBlock) {
+                                addedText += '</think>';
+                                inThinkingBlock = false;
+                            }
+                            addedText += token;
+                        }
+
+                        if (addedText) {
                             if (isFirstChunk) {
                                 textContainer.innerHTML = '';
                                 isFirstChunk = false;
                             }
-                            assistantResponseText += token;
+                            assistantResponseText += addedText;
 
                             if (bubbleEl) {
                                 bubbleEl.setAttribute('data-raw-content', assistantResponseText);
@@ -1963,6 +1983,11 @@ async function sendMessage(prompt, isRegenerate = false) {
                     }
                 }
             }
+        }
+
+        if (inThinkingBlock) {
+            assistantResponseText += '</think>';
+            inThinkingBlock = false;
         }
 
         if (isFirstChunk) {

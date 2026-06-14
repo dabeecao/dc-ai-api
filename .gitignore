@@ -14,3 +14,4 @@ frontend/dist
 dist/
 dc-ai-api
 node_modules
+dc-ai-api.log

@@ -1,3 +1,345 @@
+import vi from './locales/vi.json';
+import en from './locales/en.json';
+
+const TRANSLATIONS = { vi, en };
+const LANGUAGE_KEY = 'dc_chat_language';
+
+function t(key, params = {}) {
+    const lang = localStorage.getItem(LANGUAGE_KEY) || 'vi';
+    let str = TRANSLATIONS[lang]?.[key] || TRANSLATIONS['vi']?.[key] || key;
+    for (const [k, v] of Object.entries(params)) {
+        str = str.replace(`{${k}}`, v);
+    }
+    return str;
+}
+
+function applyLanguage() {
+    const lang = localStorage.getItem(LANGUAGE_KEY) || 'vi';
+    const tr = TRANSLATIONS[lang];
+    if (!tr) return;
+
+    document.title = tr.adminPageTitle || 'DC AI API Dashboard';
+
+    // Helper to safely set textContent
+    const setText = (id, key) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = tr[key] || '';
+    };
+    // Helper to safely set innerHTML
+    const setHTML = (id, key) => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = tr[key] || '';
+    };
+    // Helper to safely set placeholder
+    const setPlaceholder = (id, key) => {
+        const el = document.getElementById(id);
+        if (el) el.placeholder = tr[key] || '';
+    };
+
+    // Header
+    setText('lblAdminPortalTitle', 'adminPortalTitle');
+    setText('lblApiDocs', 'apiDocs');
+    setText('lblLogout', 'dashLogout');
+
+    // Tabs
+    setText('lblTabStats', 'adminTabStats');
+    setText('lblTabUpstream', 'adminTabUpstream');
+    setText('lblTabClient', 'adminTabClients');
+    setText('lblTabUsers', 'adminTabUsers');
+    setText('lblTabSettings', 'adminTabSettings');
+    setText('lblTabErrorLogs', 'adminTabErrorLogs');
+
+    // Tooltip/title for the tab buttons
+    const setTooltip = (id, key) => {
+        const el = document.getElementById(id);
+        if (el) el.title = tr[key] || '';
+    };
+    setTooltip('tabStats', 'adminTabStats');
+    setTooltip('tabUpstream', 'adminTabUpstream');
+    setTooltip('tabClient', 'adminTabClients');
+    setTooltip('tabUsers', 'adminTabUsers');
+    setTooltip('tabSettings', 'adminTabSettings');
+    setTooltip('tabErrorLogs', 'adminTabErrorLogs');
+
+    // Stats panel
+    setText('lblProxyUpstreamStats', 'adminStatsTitle');
+    setText('lblTotalUpstreamKeys', 'adminTotalUpstreamKeys');
+    setText('lblActiveUpstreamKeys', 'adminActiveUpstreamKeys');
+    setText('lblActiveClientKeys', 'adminActiveClientKeys');
+    setText('lblFallbackStats', 'adminFallbackStats');
+    setText('lblFallbackTotalRequests', 'adminFallbackTotalRequests');
+    setText('lblFallbackSuccessCount', 'adminFallbackSuccessCount');
+    setText('lblFallbackFailureCount', 'adminFallbackFailureCount');
+    setText('lblFallbackSuccessRate', 'adminFallbackSuccessRate');
+    setText('lblSuccessRate', 'adminSuccessRate');
+    setText('lblTokenConsumptionStats', 'adminTokenConsumptionStats');
+    setText('lblUpstreamTokensConsumed', 'adminUpstreamTokensConsumed');
+    setText('lblFallbackTokensConsumed', 'adminFallbackTokensConsumed');
+
+    // Add key form
+    setText('lblAddKeyLabel', 'adminAddKeyLabel');
+    setPlaceholder('keyLabel', 'adminAddKeyLabelPlaceholder');
+    setText('lblAddKeySecret', 'adminAddKeySecret');
+    setPlaceholder('keySecret', 'adminAddKeySecretPlaceholder');
+    setText('lblAddKeyURL', 'adminAddKeyURL');
+    setPlaceholder('keyURL', 'adminAddKeyURLPlaceholder');
+    setText('lblAutoDetectedFormats', 'adminAutoDetectedFormats');
+    setText('lblSelectModelsToExpose', 'adminSelectModelsToExpose');
+    setText('lblShowSelectedOnly', 'adminShowSelectedOnly');
+    setPlaceholder('modelFilterInput', 'adminFilterModels');
+    setText('lblSupportOpenAI', 'supportOpenAI');
+    setText('lblSupportGemini', 'supportGemini');
+    setText('lblSupportClaude', 'supportClaude');
+
+    // Client key form
+    setText('lblClientKeyLabel', 'adminClientNameApp');
+    setPlaceholder('clientKeyLabel', 'adminClientNameAppPlaceholder');
+    const elGenerateBtn = document.getElementById('lblGenerateApiKeyBtn');
+    if (elGenerateBtn) {
+        const spanEl = elGenerateBtn.querySelector('span');
+        if (spanEl) spanEl.textContent = tr.adminGenerateApiKey;
+    }
+
+    // Settings panel
+    setText('lblSettingsFallbackKey', 'adminDefaultFallbackKey');
+    setText('lblSettingsFallbackURL', 'adminDefaultFallbackURL');
+    setText('lblSettingsFallbackModel', 'adminDefaultFallbackModel');
+    setText('lblSettingsFallbackAPIType', 'adminFallbackAPIType');
+    setText('lblSettingsMaxRequestSize', 'adminMaxPayloadSize');
+    setText('lblSelectFallbackModel', 'adminSelectFallbackModel');
+    setText('lblFallbackAPITypeAuto', 'optApiAuto');
+    setText('lblSaveSettingsBtn', 'adminSaveSettings');
+
+    const settingsFetchModelsBtn = document.getElementById('settingsFetchModelsBtn');
+    if (settingsFetchModelsBtn) {
+        const spanEl = settingsFetchModelsBtn.querySelector('span');
+        if (spanEl) spanEl.textContent = tr.adminFetchModels || 'Fetch Models';
+    }
+    const settingsGenGuestKeyBtn = document.getElementById('settingsGenGuestKeyBtn');
+    if (settingsGenGuestKeyBtn) {
+        const spanEl = settingsGenGuestKeyBtn.querySelector('span');
+        if (spanEl) spanEl.textContent = tr.adminGenerateApiKey || 'Generate Key';
+    }
+
+    // Guest key settings
+    setText('lblGuestKeySettingsTitle', 'adminGuestKeySettingsTitle');
+    setText('lblEnableGuestKey', 'adminEnableGuestKey');
+    setText('lblGuestKeyLabel', 'adminGuestKeyLabel');
+    setText('lblGuestModelLabel', 'adminGuestModelLabel');
+    setText('lblSelectGuestModel', 'adminSelectGuestModel');
+
+    // Backup & Restore
+    setText('lblBackupRestoreTitle', 'adminBackupRestoreTitle');
+    setHTML('lblBackupRestoreDesc', 'adminBackupRestoreDesc');
+
+    // Edit modal
+    setText('lblEditModalHeader', 'adminEditUpstreamKey');
+    setText('lblEditKeyLabel', 'adminAddKeyLabel');
+    setText('lblEditKeySecret', 'adminAddKeySecret');
+    setText('lblEditKeyURL', 'adminAddKeyURL');
+    setText('lblEditExposedModels', 'adminExposedModels');
+    setText('lblEditShowSelectedOnly', 'adminShowSelectedOnly');
+    setText('lblEditSupportOpenAI', 'supportOpenAI');
+    setText('lblEditSupportGemini', 'supportGemini');
+    setText('lblEditSupportClaude', 'supportClaude');
+    setText('lblCancelEditBtn', 'cancel');
+
+    // Key gen modal
+    setText('lblKeyGenModalHeader', 'adminKeyGenModalHeader');
+    setText('lblKeyGenModalDesc', 'adminKeyGenModalDesc');
+    setText('lblCloseKeyGenModalBtn', 'adminCloseKeyGenModalBtn');
+
+    // User stats modal
+    setText('lblUserStatsModalHeader', 'adminUserStatsModalHeader');
+    setText('lblCloseUserStatsModalBtn', 'adminClose');
+
+    // Table headers — Upstream
+    setText('lblThUpstreamLabel', 'dashTableLabel');
+    setText('lblThUpstreamKey', 'dashTableKey');
+    setText('lblThUpstreamStatus', 'dashTableStatus');
+    setText('lblThUpstreamRequests', 'dashRequests');
+    setText('lblThUpstreamSuccessFail', 'adminFallbackSuccessFail');
+    setText('lblThUpstreamActions', 'adminThActions');
+
+    // Table headers — Client
+    setText('lblThClientLabel', 'dashTableLabel');
+    setText('lblThClientKey', 'dashTableKey');
+    setText('lblThClientStatus', 'dashTableStatus');
+    setText('lblThClientRequests', 'dashRequests');
+    setText('lblThClientLastUsed', 'adminClientLastUsed');
+    setText('lblThClientActions', 'adminThActions');
+
+    // Table headers — Error Logs
+    setText('lblThLogsTimestamp', 'adminThTimestamp');
+    setText('lblThLogsUpstreamKey', 'adminThUpstreamKey');
+    setText('lblThLogsStatusCode', 'adminThStatusCode');
+    setText('lblThLogsErrorMessage', 'adminThErrorMessage');
+    setText('lblThLogsActions', 'adminThActions');
+
+    // Table headers — Users
+    setText('lblThUsersUsername', 'dashUsername');
+    setText('lblThUsersStatus', 'dashTableStatus');
+    setText('lblThUsersCreatedAt', 'adminThCreatedAt');
+    setText('lblThUsersTotalKeys', 'adminTotalKeys');
+    setText('lblThUsersRequests', 'dashRequests');
+    setText('lblThUsersTotalTokens', 'dashTotalTokens');
+    setText('lblThUsersActions', 'adminThActions');
+
+    // User stats modal table headers
+    setText('lblModalSectionClientKeys', 'dashKeyManagement');
+    setText('lblModalSectionModelStats', 'adminStatsTitle');
+    setText('lblModalThKeyLabel', 'adminAddKeyLabel');
+    setText('lblModalThKeyStatus', 'adminStatusActive');
+    setText('lblModalThKeyRequests', 'adminFallbackTotalRequests');
+    setText('lblModalThKeyTotalTokens', 'adminUpstreamTokensConsumed');
+    setText('lblModalThKeyLastUsed', 'adminClientLastUsed');
+    setText('lblModalThModelName', 'adminExposedModels');
+    setText('lblModalThRequests', 'adminFallbackTotalRequests');
+    setText('lblModalThPromptTokens', 'adminPromptAbbr');
+    setText('lblModalThCompletionTokens', 'adminCompletionAbbr');
+    setText('lblModalThTotalTokens', 'adminUpstreamTokensConsumed');
+    setText('lblModalStatRequests', 'adminFallbackTotalRequests');
+    setText('lblModalStatPromptTokens', 'adminPromptAbbr');
+    setText('lblModalStatCompletionTokens', 'adminCompletionAbbr');
+    setText('lblModalStatTotalTokens', 'adminUpstreamTokensConsumed');
+
+    // Error logs
+    const elClearAllLogs = document.getElementById('clearErrorLogsBtn');
+    if (elClearAllLogs) {
+        const spanEl = elClearAllLogs.querySelector('span');
+        if (spanEl) spanEl.textContent = tr.adminClearAllLogs;
+    }
+    setPlaceholder('errorLogFilterInput', 'adminPlaceholderFilterLogs');
+    setPlaceholder('upstreamKeyFilter', 'adminPlaceholderFilter');
+    setPlaceholder('clientKeyFilter', 'adminPlaceholderFilter');
+
+    // Buttons
+    const fetchModelsBtn = document.getElementById('fetchModelsBtn');
+    if (fetchModelsBtn) {
+        const spanEl = fetchModelsBtn.querySelector('span');
+        if (spanEl) spanEl.textContent = tr.adminFetchModels;
+    }
+    const selectAllBtn = document.getElementById('selectAllModelsBtn');
+    if (selectAllBtn) selectAllBtn.textContent = tr.adminSelectAll;
+    const clearBtn = document.getElementById('clearModelsBtn');
+    if (clearBtn) clearBtn.textContent = tr.adminClear;
+    const saveNewKeyBtn = document.getElementById('saveNewKeyBtn');
+    if (saveNewKeyBtn) {
+        const spanEl = saveNewKeyBtn.querySelector('span');
+        if (spanEl) spanEl.textContent = tr.adminSaveAndAddKey;
+    }
+    const saveEditBtn = document.getElementById('saveEditBtn');
+    if (saveEditBtn) {
+        const spanEl = saveEditBtn.querySelector('span');
+        if (spanEl) spanEl.textContent = tr.adminSaveEdit;
+    }
+    const exportBackupBtn = document.getElementById('exportBackupBtn');
+    if (exportBackupBtn) {
+        const spanEl = exportBackupBtn.querySelector('span');
+        if (spanEl) spanEl.textContent = tr.adminExportBackup;
+    }
+    const importBackupTriggerBtn = document.getElementById('importBackupTriggerBtn');
+    if (importBackupTriggerBtn) {
+        const spanEl = importBackupTriggerBtn.querySelector('span');
+        if (spanEl) spanEl.textContent = tr.adminImportBackup;
+    }
+
+    // Set language selector value
+    const langSelect = document.getElementById('languageSelect');
+    if (langSelect) langSelect.value = lang;
+}
+
+function getLocalizedMessage(msg) {
+    if (!msg) return '';
+    const exactMatches = {
+        'Logged out successfully': 'toastLoggedOut',
+        'API Key and Upstream URL are required to fetch models': 'toastApiKeyUrlRequired',
+        'Fetching and verifying models against upstream...': 'toastFetchingModels',
+        'Please select at least one model to expose': 'toastSelectAtLeastOneModel',
+        'Upstream key added successfully': 'toastUpstreamKeyAdded',
+        'Client API key generated': 'toastClientKeyGenerated',
+        'Settings saved successfully': 'toastSettingsSaved',
+        'Fetching models for fallback upstream...': 'toastFetchingModels',
+        'No models returned by this upstream': 'toastNoModelsReturned',
+        'Failed to load settings': 'toastFailedToLoadSettings',
+        'Session expired. Please log in again.': 'toastSessionExpired',
+        'Session expired': 'toastSessionExpiredShort',
+        'All error logs cleared': 'toastAllLogsCleared',
+        'Log entry deleted': 'toastLogEntryDeleted',
+        'Upstream configuration duplicated! Please enter the new API Key.': 'toastKeyDuplicated',
+        'Upstream key removed successfully': 'toastKeyRemoved',
+        'Client key deleted successfully': 'toastClientKeyRemoved',
+        'Refetching models from upstream...': 'toastRefetchingModels',
+        'Upstream API key updated successfully': 'toastUpstreamKeyUpdated',
+        'Copied to clipboard': 'toastCopied',
+        'Failed to copy text': 'toastCopyFailed',
+        'User deleted successfully': 'toastUserDeleted',
+        'Failed to load users list': 'toastFailedToLoadUsers',
+        'Failed to load user stats': 'toastFailedToLoadUserStats',
+        'Backup configuration exported successfully': 'toastBackupExported',
+        'Backup restored successfully! Reloading...': 'toastBackupImported',
+        'Invalid JSON backup file': 'toastInvalidBackupFile',
+        'Guest API key generated': 'toastGuestKeyGenerated'
+    };
+    if (exactMatches[msg]) return t(exactMatches[msg]);
+
+    // Pattern-based matches
+    const patterns = [
+        { re: /^Fetched (\d+) models successfully!$/, key: 'toastFetchedModelsSuccess', param: 'count' },
+        { re: /^Refetched (\d+) models successfully!$/, key: 'toastFetchedModelsSuccess', param: 'count' },
+        { re: /^Loaded (\d+) fallback models!$/, key: 'toastLoadedFallbackModels', param: 'count' },
+        { re: /^Failed to fetch models: (.+)$/, key: 'toastFetchModelsFailed', param: 'error' },
+        { re: /^Network error fetching models: (.+)$/, key: 'toastNetworkError', param: 'error' },
+        { re: /^Network error refetching models: (.+)$/, key: 'toastNetworkError', param: 'error' },
+        { re: /^Failed to add key: (.+)$/, key: 'toastFailedToAddKey', param: 'error' },
+        { re: /^Network error saving key: (.+)$/, key: 'toastNetworkError', param: 'error' },
+        { re: /^Failed to generate client key: (.+)$/, key: 'toastFailedToGenerateClientKey', param: 'error' },
+        { re: /^Failed to save settings: (.+)$/, key: 'toastFailedToSaveSettings', param: 'error' },
+        { re: /^Error saving settings: (.+)$/, key: 'toastNetworkError', param: 'error' },
+        { re: /^Failed to clear logs: (.+)$/, key: 'toastFailedToClearLogs', param: 'error' },
+        { re: /^Failed to delete log: (.+)$/, key: 'toastFailedToDeleteLog', param: 'error' },
+        { re: /^Key status updated to (.+)$/, key: 'toastKeyStatusUpdated', param: 'status' },
+        { re: /^Failed to update status: (.+)$/, key: 'toastFailedToUpdateStatus', param: 'error' },
+        { re: /^Failed to delete key: (.+)$/, key: 'toastFailedToDeleteKey', param: 'error' },
+        { re: /^Client key status updated to (.+)$/, key: 'toastClientKeyStatusUpdated', param: 'status' },
+        { re: /^Failed to delete client key: (.+)$/, key: 'toastFailedToDeleteClientKey', param: 'error' },
+        { re: /^Failed to update key: (.+)$/, key: 'toastFailedToUpdateKey', param: 'error' },
+        { re: /^User status updated to (.+)$/, key: 'toastUserStatusUpdated', param: 'status' },
+        { re: /^Failed to update user: (.+)$/, key: 'toastFailedToUpdateUser', param: 'error' },
+        { re: /^Failed to delete user: (.+)$/, key: 'toastFailedToDeleteUser', param: 'error' },
+        { re: /^Failed to load users: (.+)$/, key: 'toastFailedToLoadUsers', param: 'error' },
+        { re: /^Failed to export backup: (.+)$/, key: 'toastBackupExportFailed', param: 'error' },
+        { re: /^Failed to import backup: (.+)$/, key: 'toastBackupImportFailed', param: 'error' },
+        { re: /^Failed to generate guest key: (.+)$/, key: 'toastFailedToGenerateGuestKey', param: 'error' },
+        { re: /^Triggered verification test for key (.+)$/, key: 'toastTriggeredVerification', param: 'id' },
+        { re: /^Verification test for key ID (.+?) succeeded!$/, key: 'toastVerificationSuccess', param: 'id' },
+        { re: /^Verification test for key ID (.+?) failed: (.+)$/, key: 'toastVerificationFailed', param: 'id' },
+        { re: /^Network failure testing key (.+?): (.+)$/, key: 'toastNetworkError', param: 'error' }
+    ];
+    for (const p of patterns) {
+        const m = msg.match(p.re);
+        if (m) return t(p.key, { [p.param]: m[1] });
+    }
+    return msg;
+}
+
+
+
+// Override confirm for localization
+const _origConfirm = window.confirm;
+window.confirm = function(msg) {
+    const confirmMap = {
+        'Are you sure you want to clear all error logs from the database?': 'confirmClearAllLogs',
+        'Are you sure you want to delete this log entry?': 'confirmDeleteLog',
+        'Are you sure you want to remove this API key from the rotation pool?': 'confirmDeleteUpstreamKey',
+        'Are you sure you want to permanently delete this client API key? Any applications currently using this key will immediately be rejected.': 'confirmDeleteClientKey',
+        'Are you sure you want to restore this backup? This will delete all current keys, clients, and settings!': 'confirmRestoreBackup',
+        'Are you sure you want to delete this user? This will delete all client keys and stats associated with this user! This action is permanent.': 'confirmDeleteUser'
+    };
+    if (confirmMap[msg]) return _origConfirm.call(window, t(confirmMap[msg]));
+    return _origConfirm.call(window, msg);
+};
+
 // State variables
 let keys = [];
 let clientKeys = [];
@@ -23,16 +365,19 @@ const addClientKeyForm = document.getElementById('addClientKeyForm');
 const tabStats = document.getElementById('tabStats');
 const tabUpstream = document.getElementById('tabUpstream');
 const tabClient = document.getElementById('tabClient');
+const tabUsers = document.getElementById('tabUsers');
 const tabSettings = document.getElementById('tabSettings');
 const tabErrorLogs = document.getElementById('tabErrorLogs');
 const upstreamKeyFilter = document.getElementById('upstreamKeyFilter');
 const statsContainer = document.getElementById('statsContainer');
 const upstreamTableContainer = document.getElementById('upstreamTableContainer');
 const clientTableContainer = document.getElementById('clientTableContainer');
+const usersTableContainer = document.getElementById('usersTableContainer');
 const settingsContainer = document.getElementById('settingsContainer');
 const errorLogsContainer = document.getElementById('errorLogsContainer');
 const errorLogsTableBody = document.getElementById('errorLogsTableBody');
 const errorLogsCardsMobile = document.getElementById('errorLogsCardsMobile');
+const usersTableBody = document.getElementById('usersTableBody');
 const panelTitle = document.getElementById('panelTitle');
 
 // Add Upstream Key Elements
@@ -74,9 +419,10 @@ function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     
+    const localizedMessage = getLocalizedMessage(message);
     toast.innerHTML = `
         <div class="toast-icon"></div>
-        <div class="toast-message" style="flex: 1; min-width: 0; word-break: break-word;">${escapeHtml(message)}</div>
+        <div class="toast-message" style="flex: 1; min-width: 0; word-break: break-word;">${escapeHtml(localizedMessage)}</div>
         <button class="toast-close-btn" aria-label="Close" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0.25rem; border-radius: 0.25rem; margin-left: auto; transition: var(--transition-fast);">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
@@ -157,41 +503,33 @@ function triggerPaneAnimation(elements) {
     });
 }
 
+function hideAllPanes() {
+    [tabStats, tabUpstream, tabClient, tabUsers, tabSettings, tabErrorLogs].forEach(tab => {
+        if (tab) tab.classList.remove('active');
+    });
+    [statsContainer, addKeyForm, addClientKeyForm, upstreamTableContainer, clientTableContainer, settingsContainer, errorLogsContainer, usersTableContainer].forEach(container => {
+        if (container) container.style.display = 'none';
+    });
+}
+
 // Tab switching
 tabStats.addEventListener('click', () => {
     activeTab = 'stats';
+    hideAllPanes();
     tabStats.classList.add('active');
-    tabUpstream.classList.remove('active');
-    tabClient.classList.remove('active');
-    tabSettings.classList.remove('active');
-    tabErrorLogs.classList.remove('active');
     statsContainer.style.display = 'block';
-    addKeyForm.style.display = 'none';
-    addClientKeyForm.style.display = 'none';
-    upstreamTableContainer.style.display = 'none';
-    clientTableContainer.style.display = 'none';
-    settingsContainer.style.display = 'none';
-    errorLogsContainer.style.display = 'none';
-    panelTitle.innerText = 'System & Fallback Statistics';
+    panelTitle.textContent = t('adminTabStats');
     triggerPaneAnimation([statsContainer]);
     loadData();
 });
 
 tabUpstream.addEventListener('click', () => {
     activeTab = 'upstream';
-    tabStats.classList.remove('active');
+    hideAllPanes();
     tabUpstream.classList.add('active');
-    tabClient.classList.remove('active');
-    tabSettings.classList.remove('active');
-    tabErrorLogs.classList.remove('active');
-    statsContainer.style.display = 'none';
     addKeyForm.style.display = 'flex';
-    addClientKeyForm.style.display = 'none';
     upstreamTableContainer.style.display = 'block';
-    clientTableContainer.style.display = 'none';
-    settingsContainer.style.display = 'none';
-    errorLogsContainer.style.display = 'none';
-    panelTitle.innerText = 'Upstream API Keys';
+    panelTitle.textContent = t('adminTabUpstream');
     triggerPaneAnimation([addKeyForm, upstreamTableContainer]);
     renderKeysSkeleton();
     loadData();
@@ -199,58 +537,43 @@ tabUpstream.addEventListener('click', () => {
 
 tabClient.addEventListener('click', () => {
     activeTab = 'client';
-    tabStats.classList.remove('active');
-    tabUpstream.classList.remove('active');
+    hideAllPanes();
     tabClient.classList.add('active');
-    tabSettings.classList.remove('active');
-    tabErrorLogs.classList.remove('active');
-    statsContainer.style.display = 'none';
-    addKeyForm.style.display = 'none';
     addClientKeyForm.style.display = 'grid';
-    upstreamTableContainer.style.display = 'none';
     clientTableContainer.style.display = 'block';
-    settingsContainer.style.display = 'none';
-    errorLogsContainer.style.display = 'none';
-    panelTitle.innerText = 'Client API Keys';
+    panelTitle.textContent = t('adminTabClients');
     triggerPaneAnimation([addClientKeyForm, clientTableContainer]);
     renderClientKeysSkeleton();
     loadClientKeys();
 });
 
+tabUsers.addEventListener('click', () => {
+    activeTab = 'users';
+    hideAllPanes();
+    tabUsers.classList.add('active');
+    usersTableContainer.style.display = 'block';
+    panelTitle.textContent = t('adminTabUsers');
+    triggerPaneAnimation([usersTableContainer]);
+    renderUsersSkeleton();
+    loadUsers();
+});
+
 tabSettings.addEventListener('click', () => {
     activeTab = 'settings';
-    tabStats.classList.remove('active');
-    tabUpstream.classList.remove('active');
-    tabClient.classList.remove('active');
+    hideAllPanes();
     tabSettings.classList.add('active');
-    tabErrorLogs.classList.remove('active');
-    statsContainer.style.display = 'none';
-    addKeyForm.style.display = 'none';
-    addClientKeyForm.style.display = 'none';
-    upstreamTableContainer.style.display = 'none';
-    clientTableContainer.style.display = 'none';
     settingsContainer.style.display = 'block';
-    errorLogsContainer.style.display = 'none';
-    panelTitle.innerText = 'Fallback & Proxy Settings';
+    panelTitle.textContent = t('adminTabSettings');
     triggerPaneAnimation([settingsContainer]);
     loadSettings();
 });
 
 tabErrorLogs.addEventListener('click', () => {
     activeTab = 'errorLogs';
-    tabStats.classList.remove('active');
-    tabUpstream.classList.remove('active');
-    tabClient.classList.remove('active');
-    tabSettings.classList.remove('active');
+    hideAllPanes();
     tabErrorLogs.classList.add('active');
-    statsContainer.style.display = 'none';
-    addKeyForm.style.display = 'none';
-    addClientKeyForm.style.display = 'none';
-    upstreamTableContainer.style.display = 'none';
-    clientTableContainer.style.display = 'none';
-    settingsContainer.style.display = 'none';
     errorLogsContainer.style.display = 'block';
-    panelTitle.innerText = 'Upstream Error Logs';
+    panelTitle.textContent = t('adminTabErrorLogs');
     triggerPaneAnimation([errorLogsContainer]);
     renderErrorLogsSkeleton();
     loadErrorLogs();
@@ -267,8 +590,10 @@ fetchModelsBtn.addEventListener('click', async () => {
     }
 
     fetchModelsBtn.disabled = true;
-    const originalText = fetchModelsBtn.innerText;
-    fetchModelsBtn.innerText = 'Fetching...';
+    const originalHTML = fetchModelsBtn.innerHTML;
+    const svgEl = fetchModelsBtn.querySelector('svg');
+    const svgHtml = svgEl ? svgEl.outerHTML : '';
+    fetchModelsBtn.innerHTML = `${svgHtml} <span>${t('adminFetching') || 'Fetching...'}</span>`;
 
     showToast('Fetching and verifying models against upstream...', 'info');
 
@@ -307,7 +632,7 @@ fetchModelsBtn.addEventListener('click', async () => {
         showToast('Network error fetching models: ' + err.message, 'error');
     } finally {
         fetchModelsBtn.disabled = false;
-        fetchModelsBtn.innerText = originalText;
+        fetchModelsBtn.innerHTML = originalHTML;
     }
 });
 
@@ -493,7 +818,10 @@ addKeyForm.addEventListener('submit', async (e) => {
     }
 
     saveNewKeyBtn.disabled = true;
-    saveNewKeyBtn.innerText = 'Saving...';
+    const originalHTML = saveNewKeyBtn.innerHTML;
+    const svgEl = saveNewKeyBtn.querySelector('svg');
+    const svgHtml = svgEl ? svgEl.outerHTML : '';
+    saveNewKeyBtn.innerHTML = `${svgHtml} <span>${t('adminSaving') || 'Saving...'}</span>`;
 
     try {
         const res = await apiFetch('/admin/api/keys', {
@@ -529,7 +857,7 @@ addKeyForm.addEventListener('submit', async (e) => {
         showToast('Network error saving key: ' + err.message, 'error');
     } finally {
         saveNewKeyBtn.disabled = false;
-        saveNewKeyBtn.innerText = 'Save & Add Key';
+        saveNewKeyBtn.innerHTML = originalHTML;
     }
 });
 
@@ -570,7 +898,10 @@ settingsForm.addEventListener('submit', async (e) => {
 
     const submitBtn = settingsForm.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
-    submitBtn.innerText = 'Saving...';
+    const originalHTML = submitBtn.innerHTML;
+    const svgEl = submitBtn.querySelector('svg');
+    const svgHtml = svgEl ? svgEl.outerHTML : '';
+    submitBtn.innerHTML = `${svgHtml} <span>${t('adminSaving') || 'Saving...'}</span>`;
 
     try {
         const res = await apiFetch('/admin/api/settings', {
@@ -598,7 +929,7 @@ settingsForm.addEventListener('submit', async (e) => {
         showToast('Error saving settings: ' + err.message, 'error');
     } finally {
         submitBtn.disabled = false;
-        submitBtn.innerText = 'Save Settings';
+        submitBtn.innerHTML = originalHTML;
     }
 });
 
@@ -613,8 +944,10 @@ settingsFetchModelsBtn.addEventListener('click', async () => {
     }
 
     settingsFetchModelsBtn.disabled = true;
-    const originalText = settingsFetchModelsBtn.innerText;
-    settingsFetchModelsBtn.innerText = 'Fetching...';
+    const originalHTML = settingsFetchModelsBtn.innerHTML;
+    const svgEl = settingsFetchModelsBtn.querySelector('svg');
+    const svgHtml = svgEl ? svgEl.outerHTML : '';
+    settingsFetchModelsBtn.innerHTML = `${svgHtml} <span>${t('adminFetching') || 'Fetching...'}</span>`;
 
     showToast('Fetching models for fallback upstream...', 'info');
 
@@ -678,7 +1011,7 @@ settingsFetchModelsBtn.addEventListener('click', async () => {
         showToast('Error: ' + err.message, 'error');
     } finally {
         settingsFetchModelsBtn.disabled = false;
-        settingsFetchModelsBtn.innerText = originalText;
+        settingsFetchModelsBtn.innerHTML = originalHTML;
     }
 });
 
@@ -822,6 +1155,8 @@ async function loadData() {
             loadClientKeys();
         } else if (activeTab === 'errorLogs') {
             loadErrorLogs();
+        } else if (activeTab === 'users') {
+            loadUsers();
         }
     } catch (err) {
         console.error("Error loading data:", err);
@@ -879,13 +1214,13 @@ function renderErrorLogsTable(logs) {
         const td = document.createElement('td');
         td.setAttribute('colspan', '5');
         td.className = 'no-data';
-        td.textContent = 'No upstream errors recorded.';
+        td.textContent = t('adminNoLogs') || 'No upstream errors recorded.';
         tr.appendChild(td);
         errorLogsTableBody.appendChild(tr);
 
         const div = document.createElement('div');
         div.className = 'no-data';
-        div.textContent = 'No upstream errors recorded.';
+        div.textContent = t('adminNoLogs') || 'No upstream errors recorded.';
         errorLogsCardsMobile.appendChild(div);
         return;
     }
@@ -951,7 +1286,7 @@ function renderErrorLogsTable(logs) {
         btnDel.className = 'btn btn-danger btn-sm';
         btnDel.style.padding = '4px 8px';
         btnDel.style.height = '28px';
-        btnDel.title = 'Delete Log';
+        btnDel.title = t('adminBtnDelete') || 'Delete';
         const docDesktop = parser.parseFromString(svgString, 'image/svg+xml');
         btnDel.appendChild(docDesktop.documentElement);
         btnDel.addEventListener('click', () => deleteErrorLog(log.id));
@@ -991,7 +1326,7 @@ function renderErrorLogsTable(logs) {
         mBtnDel.className = 'btn btn-danger btn-sm';
         mBtnDel.style.padding = '4px 8px';
         mBtnDel.style.height = '28px';
-        mBtnDel.title = 'Delete Log';
+        mBtnDel.title = t('adminBtnDelete') || 'Delete';
         const docMobile = parser.parseFromString(svgString, 'image/svg+xml');
         mBtnDel.appendChild(docMobile.documentElement);
         mBtnDel.addEventListener('click', () => deleteErrorLog(log.id));
@@ -1154,17 +1489,17 @@ function updateStatsUI() {
 
     // Upstream Token Stats
     document.getElementById('statTotalTokens').innerText = formatTokens(stats.total_tokens || 0);
-    document.getElementById('statTokenDetails').innerHTML = `Prompt: ${stats.prompt_tokens ? stats.prompt_tokens.toLocaleString() : 0} • Comp: ${stats.completion_tokens ? stats.completion_tokens.toLocaleString() : 0}`;
+    document.getElementById('statTokenDetails').innerHTML = `${t('adminPromptAbbr')}: ${stats.prompt_tokens ? stats.prompt_tokens.toLocaleString() : 0} • ${t('adminCompletionAbbr')}: ${stats.completion_tokens ? stats.completion_tokens.toLocaleString() : 0}`;
 
     // Fallback stats
-    document.getElementById('statGcliTotalRequests').innerText = stats.gcli_total_requests || 0;
-    document.getElementById('statGcliSuccessCount').innerText = stats.gcli_success_count || 0;
-    document.getElementById('statGcliFailureCount').innerText = stats.gcli_failure_count || 0;
-    document.getElementById('statGcliSuccessRate').innerText = (stats.gcli_success_rate ? stats.gcli_success_rate.toFixed(1) : 0) + '%';
+    document.getElementById('statFallbackTotalRequests').innerText = stats.gcli_total_requests || 0;
+    document.getElementById('statFallbackSuccessCount').innerText = stats.gcli_success_count || 0;
+    document.getElementById('statFallbackFailureCount').innerText = stats.gcli_failure_count || 0;
+    document.getElementById('statFallbackSuccessRate').innerText = (stats.gcli_success_rate ? stats.gcli_success_rate.toFixed(1) : 0) + '%';
 
     // Fallback Token Stats
-    document.getElementById('statGcliTotalTokens').innerText = formatTokens(stats.gcli_total_tokens || 0);
-    document.getElementById('statGcliTokenDetails').innerHTML = `Prompt: ${stats.gcli_prompt_tokens ? stats.gcli_prompt_tokens.toLocaleString() : 0} • Comp: ${stats.gcli_completion_tokens ? stats.gcli_completion_tokens.toLocaleString() : 0}`;
+    document.getElementById('statFallbackTotalTokens').innerText = formatTokens(stats.gcli_total_tokens || 0);
+    document.getElementById('statFallbackTokenDetails').innerHTML = `${t('adminPromptAbbr')}: ${stats.gcli_prompt_tokens ? stats.gcli_prompt_tokens.toLocaleString() : 0} • ${t('adminCompletionAbbr')}: ${stats.gcli_completion_tokens ? stats.gcli_completion_tokens.toLocaleString() : 0}`;
 }
 
 function showLoginOverlay() {
@@ -1252,13 +1587,14 @@ function renderClientKeysSkeleton() {
 
 function renderKeysTable(keysList) {
     if (keysList.length === 0) {
+        const noKeysMsg = keys.length === 0 ? t('adminNoKeysAdded') : t('adminNoKeysFound');
         keysTableBody.innerHTML = `
             <tr>
-                <td colspan="6" class="no-data">No keys added. Fetch models and save a key above to start rotating.</td>
+                <td colspan="6" class="no-data">${noKeysMsg}</td>
             </tr>
         `;
         document.getElementById('keysCardsMobile').innerHTML = `
-            <div class="no-data">No keys added. Fetch models and save a key above to start rotating.</div>
+            <div class="no-data">${noKeysMsg}</div>
         `;
         return;
     }
@@ -1278,7 +1614,7 @@ function renderKeysTable(keysList) {
         if (k.status === 'cooldown' && k.cooldown_until) {
             const diff = new Date(k.cooldown_until) - new Date();
             if (diff > 0) {
-                cooldownText = `<div style="font-size: 0.75rem; opacity: 0.7;">Cooldown: ${Math.round(diff/1000)}s</div>`;
+                cooldownText = `<div style="font-size: 0.75rem; opacity: 0.7;">${t('adminCooldownText', { seconds: Math.round(diff/1000) })}</div>`;
             }
         }
 
@@ -1303,7 +1639,7 @@ function renderKeysTable(keysList) {
             selectedCount = parsed.length;
         } catch(e) {}
 
-        const modelsSummary = `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">${selectedCount} models exposed</div>`;
+        const modelsSummary = `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">${t('adminExposedModelsCount', { count: selectedCount })}</div>`;
 
         // 1. Render Desktop Table Row
         const tr = document.createElement('tr');
@@ -1325,13 +1661,13 @@ function renderKeysTable(keysList) {
             <td>
                 <span class="badge badge-${k.status}">${k.status}</span>
                 ${cooldownText}
-                <div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px;" title="Average Latency | Last Latency">
+                <div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px;" title="${t('adminLatencyTooltip')}">
                     Avg: ${k.avg_latency_ms || 0}ms<br/>Last: ${k.last_latency_ms || 0}ms
                 </div>
             </td>
             <td>
                 ${k.total_requests}
-                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;" title="Prompt: ${k.prompt_tokens || 0} | Completion: ${k.completion_tokens || 0}">
+                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;" title="${t('adminPromptAbbr')}: ${k.prompt_tokens || 0} | ${t('adminCompletionAbbr')}: ${k.completion_tokens || 0}">
                     ${formatTokens(k.prompt_tokens + k.completion_tokens)}
                 </div>
             </td>
@@ -1342,13 +1678,11 @@ function renderKeysTable(keysList) {
             </td>
             <td>
                 <div class="actions-cell">
-                    <button class="btn btn-secondary btn-sm" onclick="openEditModal('${k.id}')">Edit</button>
-                    <button class="btn btn-secondary btn-sm" onclick="duplicateKeyConfig('${k.id}')">Duplicate</button>
-                    <button class="btn btn-secondary btn-sm" onclick="testKey('${k.id}', this)">Test</button>
-                    <button class="btn btn-secondary btn-sm" onclick="toggleKeyStatus('${k.id}', '${k.status}')">
-                          ${k.status === 'disabled' ? 'Enable' : 'Disable'}
-                    </button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteKey('${k.id}')">Delete</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openEditModal('${k.id}')" title="${t('adminBtnEdit')}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                    <button class="btn btn-secondary btn-sm" onclick="duplicateKeyConfig('${k.id}')" title="${t('adminBtnDuplicate')}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+                    <button class="btn btn-secondary btn-sm" onclick="testKey('${k.id}', this)" title="${t('adminBtnTest')}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleKeyStatus('${k.id}', '${k.status}')" title="${k.status === 'disabled' ? t('adminBtnEnable') : t('adminBtnDisable')}">${k.status === 'disabled' ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>'}</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteKey('${k.id}')" title="${t('adminBtnDelete')}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
                 </div>
             </td>
         `;
@@ -1371,22 +1705,22 @@ function renderKeysTable(keysList) {
             </div>
             <div class="mobile-card-body">
                 <div class="mobile-card-row">
-                    <span class="mobile-card-label">API Key</span>
+                    <span class="mobile-card-label">${t('dashTableKey')}</span>
                     <div class="key-text-container">
                         <span class="key-masked" id="key-val-${k.id}-mobile">${k.key_masked}</span>
                         <button class="copy-btn" onclick="copyTextToClipboard('${k.key}')" title="Copy Key"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
                     </div>
                 </div>
                 <div class="mobile-card-row">
-                    <span class="mobile-card-label">Upstream URL</span>
+                    <span class="mobile-card-label">${t('adminAddKeyURL')}</span>
                     <span class="mobile-card-value" style="font-size: 0.8rem; word-break: break-all;">${escapeHtml(k.upstream_url)}</span>
                 </div>
                 <div class="mobile-card-row">
-                    <span class="mobile-card-label">Requests</span>
+                    <span class="mobile-card-label">${t('dashRequests')}</span>
                     <span class="mobile-card-value">${k.total_requests} <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.25rem;">(${formatTokens(k.prompt_tokens + k.completion_tokens)})</span></span>
                 </div>
                 <div class="mobile-card-row">
-                    <span class="mobile-card-label">Success / Fail</span>
+                    <span class="mobile-card-label">${t('adminFallbackSuccessFail')}</span>
                     <span class="mobile-card-value">
                         <span style="color: var(--color-active);">${success}</span> / 
                         <span style="color: var(--color-failed);">${fail}</span>
@@ -1394,24 +1728,22 @@ function renderKeysTable(keysList) {
                     </span>
                 </div>
                 <div class="mobile-card-row">
-                    <span class="mobile-card-label">Latency</span>
+                    <span class="mobile-card-label">${t('adminTableLatency')}</span>
                     <span class="mobile-card-value">Avg: ${k.avg_latency_ms || 0}ms | Last: ${k.last_latency_ms || 0}ms</span>
                 </div>
                 ${k.error_reason ? `
                 <div class="mobile-card-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-                    <span class="mobile-card-label">Error Reason</span>
+                    <span class="mobile-card-label">${t('adminTableErrorReason')}</span>
                     <span style="color: var(--color-failed); font-size: 0.8rem; word-break: break-all;">${escapeHtml(k.error_reason)}</span>
                 </div>
                 ` : ''}
             </div>
             <div class="mobile-card-actions">
-                <button class="btn btn-secondary btn-sm" onclick="openEditModal('${k.id}')">Edit</button>
-                <button class="btn btn-secondary btn-sm" onclick="duplicateKeyConfig('${k.id}')">Duplicate</button>
-                <button class="btn btn-secondary btn-sm" onclick="testKey('${k.id}', this)">Test</button>
-                <button class="btn btn-secondary btn-sm" onclick="toggleKeyStatus('${k.id}', '${k.status}')">
-                    ${k.status === 'disabled' ? 'Enable' : 'Disable'}
-                </button>
-                <button class="btn btn-danger btn-sm" onclick="deleteKey('${k.id}')">Delete</button>
+                <button class="btn btn-secondary btn-sm" onclick="openEditModal('${k.id}')" title="${t('adminBtnEdit')}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> <span>${t('adminBtnEdit')}</span></button>
+                <button class="btn btn-secondary btn-sm" onclick="duplicateKeyConfig('${k.id}')" title="${t('adminBtnDuplicate')}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> <span>${t('adminBtnDuplicate')}</span></button>
+                <button class="btn btn-secondary btn-sm" onclick="testKey('${k.id}', this)" title="${t('adminBtnTest')}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> <span>${t('adminBtnTest')}</span></button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleKeyStatus('${k.id}', '${k.status}')" title="${k.status === 'disabled' ? t('adminBtnEnable') : t('adminBtnDisable')}">${k.status === 'disabled' ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>'} <span>${k.status === 'disabled' ? t('adminBtnEnable') : t('adminBtnDisable')}</span></button>
+                <button class="btn btn-danger btn-sm" onclick="deleteKey('${k.id}')" title="${t('adminBtnDelete')}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> <span>${t('adminBtnDelete')}</span></button>
             </div>
         `;
         mobileCardsContainer.appendChild(card);
@@ -1506,11 +1838,11 @@ function renderClientKeysTable() {
     if (clientKeys.length === 0) {
         clientKeysTableBody.innerHTML = `
             <tr>
-                <td colspan="6" class="no-data">No client keys generated yet. Use the form above to generate one.</td>
+                <td colspan="6" class="no-data">${t('adminNoClientKeys')}</td>
             </tr>
         `;
         document.getElementById('clientKeysCardsMobile').innerHTML = `
-            <div class="no-data">No client keys generated yet. Use the form above to generate one.</div>
+            <div class="no-data">${t('adminNoClientKeys')}</div>
         `;
         return;
     }
@@ -1522,7 +1854,7 @@ function renderClientKeysTable() {
     clientKeys.forEach(k => {
         const lastUsedText = k.last_used && k.last_used !== '0001-01-01T00:00:00Z' 
             ? new Date(k.last_used).toLocaleString() 
-            : 'Never';
+            : t('adminNever');
 
         // 1. Render Desktop Table Row
         const tr = document.createElement('tr');
@@ -1537,17 +1869,15 @@ function renderClientKeysTable() {
             <td><span class="badge badge-${k.status === 'active' ? 'active' : 'disabled'}">${k.status}</span></td>
             <td>
                 ${k.total_requests}
-                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;" title="Prompt: ${k.prompt_tokens || 0} | Completion: ${k.completion_tokens || 0}">
+                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;" title="${t('adminPromptAbbr')}: ${k.prompt_tokens || 0} | ${t('adminCompletionAbbr')}: ${k.completion_tokens || 0}">
                     ${formatTokens(k.prompt_tokens + k.completion_tokens)}
                 </div>
             </td>
             <td><span style="font-size: 0.8rem; color: var(--text-secondary);">${lastUsedText}</span></td>
             <td>
                 <div class="actions-cell">
-                    <button class="btn btn-secondary btn-sm" onclick="toggleClientKeyStatus('${k.id}', '${k.status}')">
-                        ${k.status === 'disabled' ? 'Enable' : 'Disable'}
-                    </button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteClientKey('${k.id}')">Delete</button>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleClientKeyStatus('${k.id}', '${k.status}')" title="${k.status === 'disabled' ? t('adminBtnEnable') : t('adminBtnDisable')}">${k.status === 'disabled' ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>'}</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteClientKey('${k.id}')" title="${t('adminBtnDelete')}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
                 </div>
             </td>
         `;
@@ -1563,26 +1893,24 @@ function renderClientKeysTable() {
             </div>
             <div class="mobile-card-body">
                 <div class="mobile-card-row">
-                    <span class="mobile-card-label">Client Key</span>
+                    <span class="mobile-card-label">${t('dashTableKey')}</span>
                     <div class="key-text-container">
                         <span class="key-masked" id="clientKey-val-${k.id}-mobile">${k.key_masked}</span>
                         <button class="copy-btn" onclick="copyTextToClipboard('${k.key}')" title="Copy Key"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
                     </div>
                 </div>
                 <div class="mobile-card-row">
-                    <span class="mobile-card-label">Requests</span>
+                    <span class="mobile-card-label">${t('dashRequests')}</span>
                     <span class="mobile-card-value">${k.total_requests} <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.25rem;">(${formatTokens(k.prompt_tokens + k.completion_tokens)})</span></span>
                 </div>
                 <div class="mobile-card-row">
-                    <span class="mobile-card-label">Last Used</span>
+                    <span class="mobile-card-label">${t('adminClientLastUsed')}</span>
                     <span class="mobile-card-value" style="font-size: 0.8rem;">${lastUsedText}</span>
                 </div>
             </div>
             <div class="mobile-card-actions">
-                <button class="btn btn-secondary btn-sm" onclick="toggleClientKeyStatus('${k.id}', '${k.status}')">
-                    ${k.status === 'disabled' ? 'Enable' : 'Disable'}
-                </button>
-                <button class="btn btn-danger btn-sm" onclick="deleteClientKey('${k.id}')">Delete</button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleClientKeyStatus('${k.id}', '${k.status}')" title="${k.status === 'disabled' ? t('adminBtnEnable') : t('adminBtnDisable')}">${k.status === 'disabled' ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>'} <span>${k.status === 'disabled' ? t('adminBtnEnable') : t('adminBtnDisable')}</span></button>
+                <button class="btn btn-danger btn-sm" onclick="deleteClientKey('${k.id}')" title="${t('adminBtnDelete')}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> <span>${t('adminBtnDelete')}</span></button>
             </div>
         `;
         mobileCardsContainer.appendChild(card);
@@ -1592,8 +1920,8 @@ function renderClientKeysTable() {
 // Test Upstream Key
 async function testKey(id, btn) {
     btn.disabled = true;
-    const originalText = btn.innerText;
-    btn.innerText = 'Testing...';
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = `<span style="font-size: 0.75rem;">${t('adminTesting')}</span>`;
     showToast(`Triggered verification test for key ${id}`, 'info');
 
     try {
@@ -1608,7 +1936,7 @@ async function testKey(id, btn) {
         showToast(`Network failure testing key ${id}: ${err.message}`, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerText = originalText;
+        btn.innerHTML = originalHTML;
         loadData();
     }
 }
@@ -1809,8 +2137,10 @@ editRefetchModelsBtn.addEventListener('click', async () => {
     }
 
     editRefetchModelsBtn.disabled = true;
-    const originalText = editRefetchModelsBtn.innerText;
-    editRefetchModelsBtn.innerText = 'Refetching...';
+    const originalHTML = editRefetchModelsBtn.innerHTML;
+    const svgEl = editRefetchModelsBtn.querySelector('svg');
+    const svgHtml = svgEl ? svgEl.outerHTML : '';
+    editRefetchModelsBtn.innerHTML = `${svgHtml} <span>${t('adminFetching') || 'Fetching...'}</span>`;
 
     showToast('Refetching models from upstream...', 'info');
 
@@ -1853,7 +2183,7 @@ editRefetchModelsBtn.addEventListener('click', async () => {
         showToast('Network error refetching models: ' + err.message, 'error');
     } finally {
         editRefetchModelsBtn.disabled = false;
-        editRefetchModelsBtn.innerText = originalText;
+        editRefetchModelsBtn.innerHTML = originalHTML;
     }
 });
 
@@ -1883,7 +2213,10 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
 
     const saveEditBtn = document.getElementById('saveEditBtn');
     saveEditBtn.disabled = true;
-    saveEditBtn.innerText = 'Saving...';
+    const originalHTML = saveEditBtn.innerHTML;
+    const svgEl = saveEditBtn.querySelector('svg');
+    const svgHtml = svgEl ? svgEl.outerHTML : '';
+    saveEditBtn.innerHTML = `${svgHtml} <span>${t('adminSaving') || 'Saving...'}</span>`;
 
     try {
         const res = await apiFetch(`/admin/api/keys/${editingKeyId}`, {
@@ -1913,7 +2246,7 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
         showToast('Error saving key changes: ' + err.message, 'error');
     } finally {
         saveEditBtn.disabled = false;
-        saveEditBtn.innerText = 'Save changes';
+        saveEditBtn.innerHTML = originalHTML;
     }
 });
 
@@ -1958,10 +2291,362 @@ function escapeHtml(text) {
         .replace(/'/g, "&#039;");
 }
 
+// --- User Management Functions ---
+let users = [];
+
+async function loadUsers() {
+    try {
+        const res = await apiFetch('/admin/api/users');
+        if (res.ok) {
+            users = await res.json();
+            renderUsers(users);
+        } else {
+            showToast('Failed to load users list', 'error');
+        }
+    } catch (err) {
+        showToast('Error loading users list: ' + err.message, 'error');
+    }
+}
+
+function renderUsers(usersList) {
+    const mobileCardsContainer = document.getElementById('usersCardsMobile');
+    if (usersList.length === 0) {
+        const noUsersMsg = t('adminNoUsers') || 'No users registered yet.';
+        usersTableBody.innerHTML = `
+            <tr>
+                <td colspan="7" class="no-data">${noUsersMsg}</td>
+            </tr>
+        `;
+        if (mobileCardsContainer) {
+            mobileCardsContainer.innerHTML = `
+                <div class="no-data">${noUsersMsg}</div>
+            `;
+        }
+        return;
+    }
+
+    if (mobileCardsContainer) {
+        mobileCardsContainer.innerHTML = '';
+    }
+
+    usersTableBody.innerHTML = usersList.map(user => {
+        let statusClass = 'badge-cooldown';
+        let statusText = t('adminStatusPending') || 'Pending';
+        if (user.status === 'active') {
+            statusClass = 'badge-active';
+            statusText = t('adminStatusActive') || 'Active';
+        } else if (user.status === 'disabled') {
+            statusClass = 'badge-failed';
+            statusText = t('adminStatusDisabled') || 'Disabled';
+        }
+
+        const dateStr = new Date(user.created_at).toLocaleString();
+
+        let actionButtons = '';
+        let actionButtonsMobile = '';
+        
+        const checkIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+        const disableIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>`;
+        const trashIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+        const statsIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`;
+
+        if (user.status === 'pending') {
+            actionButtons = `
+                <button class="btn btn-secondary btn-sm" onclick="updateUserStatus('${user.id}', 'active')" title="${t('adminBtnApprove') || 'Approve'}">${checkIcon}</button>
+            `;
+            actionButtonsMobile = `
+                <button class="btn btn-primary btn-sm" onclick="updateUserStatus('${user.id}', 'active')" title="${t('adminBtnApprove') || 'Approve'}">${checkIcon} <span>${t('adminBtnApprove') || 'Approve'}</span></button>
+            `;
+        } else if (user.status === 'active') {
+            actionButtons = `
+                <button class="btn btn-secondary btn-sm" onclick="updateUserStatus('${user.id}', 'disabled')" title="${t('adminBtnDisable') || 'Disable'}">${disableIcon}</button>
+            `;
+            actionButtonsMobile = `
+                <button class="btn btn-secondary btn-sm" onclick="updateUserStatus('${user.id}', 'disabled')" title="${t('adminBtnDisable') || 'Disable'}">${disableIcon} <span>${t('adminBtnDisable') || 'Disable'}</span></button>
+            `;
+        } else if (user.status === 'disabled') {
+            actionButtons = `
+                <button class="btn btn-secondary btn-sm" onclick="updateUserStatus('${user.id}', 'active')" title="${t('adminBtnEnable') || 'Enable'}">${checkIcon}</button>
+            `;
+            actionButtonsMobile = `
+                <button class="btn btn-secondary btn-sm" onclick="updateUserStatus('${user.id}', 'active')" title="${t('adminBtnEnable') || 'Enable'}">${checkIcon} <span>${t('adminBtnEnable') || 'Enable'}</span></button>
+            `;
+        }
+
+        const trHtml = `
+            <tr>
+                <td style="font-weight: 600;">${escapeHtml(user.username)}</td>
+                <td><span class="badge ${statusClass}">${statusText}</span></td>
+                <td>${user.total_client_keys}</td>
+                <td>${Number(user.total_requests).toLocaleString()}</td>
+                <td>${formatTokens(user.total_tokens)}</td>
+                <td style="color: var(--text-muted); font-size: 0.8rem;">${dateStr}</td>
+                <td>
+                    <div class="actions-cell" style="justify-content: flex-end;">
+                        ${actionButtons}
+                        <button class="btn btn-secondary btn-sm" onclick="viewUserStats('${user.id}', '${escapeHtml(user.username)}')" title="${t('adminStats') || 'Stats'}">${statsIcon}</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteUser('${user.id}')" title="${t('adminBtnDelete') || 'Delete'}">${trashIcon}</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        if (mobileCardsContainer) {
+            const card = document.createElement('div');
+            card.className = 'mobile-card';
+            card.innerHTML = `
+                <div class="mobile-card-header">
+                    <span class="mobile-card-title">${escapeHtml(user.username)}</span>
+                    <span class="badge ${statusClass}">${statusText}</span>
+                </div>
+                <div class="mobile-card-body">
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">${t('adminTotalKeys')}</span>
+                        <span class="mobile-card-value">${user.total_client_keys}</span>
+                    </div>
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">${t('dashRequests')}</span>
+                        <span class="mobile-card-value">${Number(user.total_requests).toLocaleString()}</span>
+                    </div>
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">${t('dashTotalTokens')}</span>
+                        <span class="mobile-card-value">${formatTokens(user.total_tokens)}</span>
+                    </div>
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">${t('adminThCreatedAt')}</span>
+                        <span class="mobile-card-value" style="font-size: 0.8rem;">${dateStr}</span>
+                    </div>
+                </div>
+                <div class="mobile-card-actions">
+                    ${actionButtonsMobile}
+                    <button class="btn btn-secondary btn-sm" onclick="viewUserStats('${user.id}', '${escapeHtml(user.username)}')" title="${t('adminStats') || 'Stats'}">${statsIcon} <span>${t('adminStats') || 'Stats'}</span></button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteUser('${user.id}')" title="${t('adminBtnDelete') || 'Delete'}">${trashIcon} <span>${t('adminBtnDelete') || 'Delete'}</span></button>
+                </div>
+            `;
+            mobileCardsContainer.appendChild(card);
+        }
+
+        return trHtml;
+    }).join('');
+}
+
+async function updateUserStatus(userID, status) {
+    try {
+        const res = await apiFetch(`/admin/api/users/${userID}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(t('toastUserStatusUpdated', { status }) || `User status updated to ${status}`, 'success');
+            loadUsers();
+        } else {
+            showToast(t('toastFailedToUpdateUser', { error: data.error }) || 'Failed to update user status', 'error');
+        }
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+async function deleteUser(userID) {
+    if (!window.confirm(t('confirmDeleteUser') || 'Are you sure you want to delete this user?')) return;
+    try {
+        const res = await apiFetch(`/admin/api/users/${userID}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(t('toastUserDeleted') || 'User deleted successfully', 'success');
+            loadUsers();
+        } else {
+            showToast(t('toastFailedToDeleteUser', { error: data.error }) || 'Failed to delete user', 'error');
+        }
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+async function viewUserStats(userID, username) {
+    const statsModalUsername = document.getElementById('statsModalUsername');
+    if (statsModalUsername) statsModalUsername.textContent = username;
+    
+    const modalStatRequests = document.getElementById('modalStatRequests');
+    if (modalStatRequests) modalStatRequests.textContent = '0';
+    
+    const modalStatTotalTokens = document.getElementById('modalStatTotalTokens');
+    if (modalStatTotalTokens) modalStatTotalTokens.textContent = '0';
+    
+    const modalStatPromptTokens = document.getElementById('modalStatPromptTokens');
+    if (modalStatPromptTokens) modalStatPromptTokens.textContent = '0';
+    
+    const modalStatCompletionTokens = document.getElementById('modalStatCompletionTokens');
+    if (modalStatCompletionTokens) modalStatCompletionTokens.textContent = '0';
+    
+    const modalModelStatsTableBody = document.getElementById('modalModelStatsTableBody');
+    if (modalModelStatsTableBody) {
+        modalModelStatsTableBody.innerHTML = `<tr><td colspan="5" class="no-data">${t('adminFetching') || 'Fetching...'}</td></tr>`;
+    }
+    
+    const modalKeysTableBody = document.getElementById('modalKeysTableBody');
+    if (modalKeysTableBody) {
+        modalKeysTableBody.innerHTML = `<tr><td colspan="4" class="no-data">${t('adminFetching') || 'Fetching...'}</td></tr>`;
+    }
+    
+    const modalModelMobile = document.getElementById('modalModelStatsCardsMobile');
+    const modalKeysMobile = document.getElementById('modalKeysCardsMobile');
+    if (modalModelMobile) modalModelMobile.innerHTML = '';
+    if (modalKeysMobile) modalKeysMobile.innerHTML = '';
+
+    const userStatsModal = document.getElementById('userStatsModal');
+    if (userStatsModal) userStatsModal.classList.add('active');
+
+    try {
+        const res = await apiFetch(`/admin/api/users/${userID}/stats`);
+        if (!res.ok) throw new Error("Failed to load user stats");
+        const stats = await res.json();
+
+        if (modalStatRequests) modalStatRequests.textContent = Number(stats.total_requests || 0).toLocaleString();
+        if (modalStatTotalTokens) modalStatTotalTokens.textContent = formatTokens(stats.total_tokens || 0);
+        if (modalStatPromptTokens) modalStatPromptTokens.textContent = Number(stats.prompt_tokens || 0).toLocaleString();
+        if (modalStatCompletionTokens) modalStatCompletionTokens.textContent = Number(stats.completion_tokens || 0).toLocaleString();
+
+        const modelStats = stats.model_stats || [];
+        if (modalModelStatsTableBody) {
+            if (modelStats.length === 0) {
+                const noModelMsg = t('adminNoModelConsumption') || 'No model consumption recorded.';
+                modalModelStatsTableBody.innerHTML = `<tr><td colspan="5" class="no-data">${noModelMsg}</td></tr>`;
+                if (modalModelMobile) modalModelMobile.innerHTML = `<div class="no-data">${noModelMsg}</div>`;
+            } else {
+                if (modalModelMobile) modalModelMobile.innerHTML = '';
+                modalModelStatsTableBody.innerHTML = modelStats.map(ms => {
+                    const tr = `
+                        <tr>
+                            <td><strong>${escapeHtml(ms.model_name)}</strong></td>
+                            <td>${Number(ms.total_requests).toLocaleString()}</td>
+                            <td>${Number(ms.prompt_tokens).toLocaleString()}</td>
+                            <td>${Number(ms.completion_tokens).toLocaleString()}</td>
+                            <td>${formatTokens(ms.total_tokens)}</td>
+                        </tr>
+                    `;
+                    if (modalModelMobile) {
+                        const card = document.createElement('div');
+                        card.className = 'mobile-card';
+                        card.style.margin = '0 0 0.5rem 0';
+                        card.style.padding = '0.75rem';
+                        card.innerHTML = `
+                            <div class="mobile-card-header" style="padding-bottom: 0.25rem;">
+                                <span class="mobile-card-title" style="font-size: 0.85rem;">${escapeHtml(ms.model_name)}</span>
+                            </div>
+                            <div class="mobile-card-body" style="font-size: 0.75rem;">
+                                <div class="mobile-card-row"><span class="mobile-card-label">Requests</span><span>${Number(ms.total_requests).toLocaleString()}</span></div>
+                                <div class="mobile-card-row"><span class="mobile-card-label">Tokens</span><span>${formatTokens(ms.total_tokens)} <span style="opacity:0.6;">(P: ${ms.prompt_tokens.toLocaleString()} | C: ${ms.completion_tokens.toLocaleString()})</span></span></div>
+                            </div>
+                        `;
+                        modalModelMobile.appendChild(card);
+                    }
+                    return tr;
+                }).join('');
+            }
+        }
+
+        const keysList = stats.keys || [];
+        if (modalKeysTableBody) {
+            if (keysList.length === 0) {
+                const noKeysMsg = t('adminNoKeysFound') || 'No keys found.';
+                modalKeysTableBody.innerHTML = `<tr><td colspan="5" class="no-data">${noKeysMsg}</td></tr>`;
+                if (modalKeysMobile) modalKeysMobile.innerHTML = `<div class="no-data">${noKeysMsg}</div>`;
+            } else {
+                if (modalKeysMobile) modalKeysMobile.innerHTML = '';
+                modalKeysTableBody.innerHTML = keysList.map(k => {
+                    const lastUsedText = k.last_used && k.last_used !== '0001-01-01T00:00:00Z' && k.last_used !== '0001-01-01T00:00:00.000Z' && k.last_used !== '0001-01-01T07:00:00+07:00'
+                        ? new Date(k.last_used).toLocaleString() 
+                        : (t('adminNever') || 'Never');
+
+                    const tr = `
+                        <tr>
+                            <td><strong>${escapeHtml(k.label)}</strong></td>
+                            <td><span class="badge badge-${k.status === 'active' ? 'active' : 'disabled'}">${k.status}</span></td>
+                            <td>${Number(k.total_requests).toLocaleString()}</td>
+                            <td>${formatTokens(k.total_tokens)}</td>
+                            <td style="color: var(--text-muted); font-size: 0.8rem;">${lastUsedText}</td>
+                        </tr>
+                    `;
+                    if (modalKeysMobile) {
+                        const card = document.createElement('div');
+                        card.className = 'mobile-card';
+                        card.style.margin = '0 0 0.5rem 0';
+                        card.style.padding = '0.75rem';
+                        card.innerHTML = `
+                            <div class="mobile-card-header" style="padding-bottom: 0.25rem;">
+                                <span class="mobile-card-title" style="font-size: 0.85rem;">${escapeHtml(k.label)}</span>
+                                <span class="badge badge-${k.status === 'active' ? 'active' : 'disabled'}" style="font-size: 0.65rem; padding: 1px 4px;">${k.status}</span>
+                            </div>
+                            <div class="mobile-card-body" style="font-size: 0.75rem;">
+                                <div class="mobile-card-row"><span class="mobile-card-label">Requests</span><span>${Number(k.total_requests).toLocaleString()}</span></div>
+                                <div class="mobile-card-row"><span class="mobile-card-label">Tokens</span><span>${formatTokens(k.total_tokens)}</span></div>
+                                <div class="mobile-card-row"><span class="mobile-card-label">Last Used</span><span style="color: var(--text-muted);">${lastUsedText}</span></div>
+                            </div>
+                        `;
+                        modalKeysMobile.appendChild(card);
+                    }
+                    return tr;
+                }).join('');
+            }
+        }
+    } catch (err) {
+        showToast(err.message, 'error');
+        closeUserStatsModal();
+    }
+}
+
+function closeUserStatsModal() {
+    const userStatsModal = document.getElementById('userStatsModal');
+    if (userStatsModal) userStatsModal.classList.remove('active');
+}
+
+function renderUsersSkeleton() {
+    usersTableBody.innerHTML = `
+        <tr>
+            <td><div class="skeleton-loader skeleton-text-lg"></div></td>
+            <td><div class="skeleton-loader skeleton-badge"></div></td>
+            <td><div class="skeleton-loader skeleton-text-sm"></div></td>
+            <td><div class="skeleton-loader skeleton-text-sm"></div></td>
+            <td><div class="skeleton-loader skeleton-text-md"></div></td>
+            <td><div class="skeleton-loader skeleton-text-lg"></div></td>
+            <td><div class="skeleton-loader skeleton-text-lg" style="width: 100px; margin-left: auto;"></div></td>
+        </tr>
+        <tr>
+            <td><div class="skeleton-loader skeleton-text-lg"></div></td>
+            <td><div class="skeleton-loader skeleton-badge"></div></td>
+            <td><div class="skeleton-loader skeleton-text-sm"></div></td>
+            <td><div class="skeleton-loader skeleton-text-sm"></div></td>
+            <td><div class="skeleton-loader skeleton-text-md"></div></td>
+            <td><div class="skeleton-loader skeleton-text-lg"></div></td>
+            <td><div class="skeleton-loader skeleton-text-lg" style="width: 100px; margin-left: auto;"></div></td>
+        </tr>
+    `;
+    const mobileHtml = `
+        <div class="mobile-card skeleton-card">
+            <div class="mobile-card-header" style="border-bottom: none;">
+                <div style="width: 60%;"><div class="skeleton-loader skeleton-text-lg"></div></div>
+                <div class="skeleton-loader skeleton-badge"></div>
+            </div>
+            <div class="mobile-card-body">
+                <div class="mobile-card-row"><div class="skeleton-loader skeleton-text-sm" style="width: 30%;"></div><div class="skeleton-loader skeleton-text-sm" style="width: 20%;"></div></div>
+                <div class="mobile-card-row"><div class="skeleton-loader skeleton-text-sm" style="width: 40%;"></div><div class="skeleton-loader skeleton-text-sm" style="width: 30%;"></div></div>
+            </div>
+        </div>
+    `;
+    const mobileCardsContainer = document.getElementById('usersCardsMobile');
+    if (mobileCardsContainer) {
+        mobileCardsContainer.innerHTML = mobileHtml + mobileHtml;
+    }
+}
+
 // Initial setup
 let pollerId = null;
 
 async function initPortal() {
+    applyLanguage();
     try {
         const res = await fetch('/admin/api/config');
         if (!res.ok) {
@@ -2012,6 +2697,118 @@ document.getElementById('errorLogFilter').addEventListener('input', applyErrorLo
 document.getElementById('clearErrorLogsBtn').addEventListener('click', clearAllErrorLogs);
 document.getElementById('upstreamKeyFilter').addEventListener('input', applyUpstreamKeyFilter);
 
+// Backup & Restore click listeners
+const exportBackupBtn = document.getElementById('exportBackupBtn');
+if (exportBackupBtn) {
+    exportBackupBtn.addEventListener('click', async () => {
+        try {
+            const res = await apiFetch('/admin/api/backup');
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `dc_ai_api_backup_${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+                showToast(t('toastBackupExported') || 'Backup configuration exported successfully', 'success');
+            } else {
+                const data = await res.json();
+                showToast((t('toastBackupExportFailed') || 'Export failed: {error}').replace('{error}', data.error || res.statusText), 'error');
+            }
+        } catch (err) {
+            showToast((t('toastBackupExportFailed') || 'Export failed: {error}').replace('{error}', err.message), 'error');
+        }
+    });
+}
+
+const importBackupTriggerBtn = document.getElementById('importBackupTriggerBtn');
+const importBackupFile = document.getElementById('importBackupFile');
+
+if (importBackupTriggerBtn && importBackupFile) {
+    importBackupTriggerBtn.addEventListener('click', () => {
+        importBackupFile.click();
+    });
+
+    importBackupFile.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!confirm(t('confirmRestoreBackup') || 'Are you sure you want to restore this backup? This will delete all current keys, clients, and settings!')) {
+            importBackupFile.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const backupData = JSON.parse(event.target.result);
+                const res = await apiFetch('/admin/api/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(backupData)
+                });
+
+                if (res.ok) {
+                    showToast(t('toastBackupImported') || 'Backup restored successfully! Reloading...', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    const data = await res.json();
+                    showToast((t('toastBackupImportFailed') || 'Import failed: {error}').replace('{error}', data.error || res.statusText), 'error');
+                }
+            } catch (err) {
+                showToast(t('toastInvalidBackupFile') || 'Invalid JSON backup file', 'error');
+            } finally {
+                importBackupFile.value = '';
+            }
+        };
+        reader.readAsText(file);
+    });
+}
+
+// Language select event listener
+const langSelect = document.getElementById('languageSelect');
+if (langSelect) {
+    if (!localStorage.getItem(LANGUAGE_KEY)) {
+        const userLang = (navigator.language || navigator.userLanguage || 'vi').toLowerCase().startsWith('vi') ? 'vi' : 'en';
+        localStorage.setItem(LANGUAGE_KEY, userLang);
+    }
+    langSelect.value = localStorage.getItem(LANGUAGE_KEY) || 'vi';
+    
+    langSelect.addEventListener('change', (e) => {
+        localStorage.setItem(LANGUAGE_KEY, e.target.value);
+        applyLanguage();
+        // Re-render components with translated keys/tooltips
+        applyUpstreamKeyFilter();
+        renderClientKeysTable();
+        applyErrorLogFilter();
+        if (activeTab === 'users') {
+            loadUsers();
+        }
+    });
+}
+
+// Mobile menu toggle
+const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+const headerEl = document.querySelector('header');
+if (mobileMenuBtn && headerEl) {
+    mobileMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        headerEl.classList.toggle('menu-open');
+    });
+
+    // Close when clicking outside header
+    document.addEventListener('click', (e) => {
+        if (!headerEl.contains(e.target)) {
+            headerEl.classList.remove('menu-open');
+        }
+    });
+}
+
 // Bind module-scoped functions to window object for inline onclick handlers
 window.copyTextToClipboard = copyTextToClipboard;
 window.openEditModal = openEditModal;
@@ -2023,4 +2820,9 @@ window.deleteKey = deleteKey;
 window.toggleClientKeyStatus = toggleClientKeyStatus;
 window.deleteClientKey = deleteClientKey;
 window.closeKeyGenModal = closeKeyGenModal;
+window.updateUserStatus = updateUserStatus;
+window.deleteUser = deleteUser;
+window.viewUserStats = viewUserStats;
+window.closeUserStatsModal = closeUserStatsModal;
+window.t = t;
 

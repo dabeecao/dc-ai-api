@@ -14,7 +14,8 @@ export default defineConfig({
         chat: resolve(__dirname, 'frontend/chat.html'),
         login: resolve(__dirname, 'frontend/login.html'),
         landing: resolve(__dirname, 'frontend/landing.html'),
-        docs: resolve(__dirname, 'frontend/docs.html')
+        docs: resolve(__dirname, 'frontend/docs.html'),
+        dashboard: resolve(__dirname, 'frontend/dashboard.html')
       },
       output: {
         manualChunks(id) {

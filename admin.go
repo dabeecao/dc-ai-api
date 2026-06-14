@@ -602,11 +602,18 @@ func (a *AdminServer) FetchModelsHandler(w http.ResponseWriter, r *http.Request)
 					if readErr == nil {
 						var rawMap map[string]interface{}
 						if json.Unmarshal(bodyBytes, &rawMap) == nil {
-							// OpenAI model listing response contains `"object": "list"`.
-							// Claude Native /v1/models response does NOT.
-							if obj, ok := rawMap["object"].(string); ok && obj == "list" {
-								// This is OpenAI, not Claude!
-							} else {
+							isClaude := false
+							if _, ok := rawMap["has_more"]; ok {
+								isClaude = true
+							} else if dataList, ok := rawMap["data"].([]interface{}); ok && len(dataList) > 0 {
+								if firstModel, ok := dataList[0].(map[string]interface{}); ok {
+									if _, hasDisplayName := firstModel["display_name"]; hasDisplayName {
+										isClaude = true
+									}
+								}
+							}
+
+							if isClaude {
 								supportsClaude = true
 								var result struct {
 									Data []struct {
@@ -618,23 +625,6 @@ func (a *AdminServer) FetchModelsHandler(w http.ResponseWriter, r *http.Request)
 										if m.ID != "" && !modelMap[m.ID] {
 											modelMap[m.ID] = true
 											models = append(models, m.ID)
-										}
-									}
-								}
-								// Fallback to well-known models if the endpoint returns no data
-								if len(result.Data) == 0 {
-									claudeModels := []string{
-										"claude-opus-4-5",
-										"claude-sonnet-4-5",
-										"claude-3-5-sonnet-20241022",
-										"claude-3-5-haiku-20241022",
-										"claude-3-5-sonnet-latest",
-										"claude-3-5-haiku-latest",
-									}
-									for _, m := range claudeModels {
-										if !modelMap[m] {
-											modelMap[m] = true
-											models = append(models, m)
 										}
 									}
 								}
@@ -827,12 +817,14 @@ func (a *AdminServer) ConfigHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"auth_required": adminPassword != "",
+		"auth_required":      adminPassword != "",
+		"turnstile_site_key": os.Getenv("TURNSTILE_SITE_KEY"),
 	})
 }
 
 type LoginRequest struct {
-	Password string `json:"password"`
+	Password       string `json:"password"`
+	TurnstileToken string `json:"cf-turnstile-response"`
 }
 
 func (a *AdminServer) LoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -853,6 +845,15 @@ func (a *AdminServer) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+		return
+	}
+
+	// Turnstile Verification
+	if ok, err := verifyTurnstile(req.TurnstileToken, r.RemoteAddr); !ok {
+		writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error":   "Turnstile verification failed: " + err.Error(),
+		})
 		return
 	}
 
@@ -924,4 +925,139 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(data)
+}
+
+func (a *AdminServer) ExportBackupHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	backup, err := a.store.ExportBackup()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	// Set headers to trigger JSON download
+	w.Header().Set("Content-Disposition", "attachment; filename=dc_ai_api_backup_"+time.Now().Format("20060102_150405")+".json")
+	writeJSON(w, http.StatusOK, backup)
+}
+
+func (a *AdminServer) ImportBackupHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Max 10MB backup files
+	r.Body = http.MaxBytesReader(w, r.Body, 10*1024*1024)
+
+	var backup BackupData
+	if err := json.NewDecoder(r.Body).Decode(&backup); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid backup JSON file: " + err.Error()})
+		return
+	}
+
+	if err := a.store.ImportBackup(&backup); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	LogInfo("Admin successfully restored system backup")
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Backup restored successfully"})
+}
+
+func (a *AdminServer) AdminListUsersHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	users, err := a.store.ListUsersWithStats()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, users)
+}
+
+type AdminUpdateUserStatusRequest struct {
+	Status string `json:"status"`
+}
+
+func (a *AdminServer) AdminUpdateUserStatusHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID := r.PathValue("id")
+	if userID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing user ID"})
+		return
+	}
+
+	var req AdminUpdateUserStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+		return
+	}
+
+	if err := a.store.UpdateUserStatus(userID, req.Status); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	LogInfo("Admin updated user %s status to %s", userID, req.Status)
+	writeJSON(w, http.StatusOK, map[string]string{"message": "User status updated successfully"})
+}
+
+func (a *AdminServer) AdminDeleteUserHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID := r.PathValue("id")
+	if userID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing user ID"})
+		return
+	}
+
+	if err := a.store.DeleteUser(userID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	LogInfo("Admin deleted user ID: %s", userID)
+	writeJSON(w, http.StatusOK, map[string]string{"message": "User deleted successfully"})
+}
+
+func (a *AdminServer) AdminGetUserStatsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID := r.PathValue("id")
+	if userID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing user ID"})
+		return
+	}
+
+	stats, err := a.store.GetUserStats(userID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	if keys, ok := stats["keys"].([]ClientKeySafe); ok {
+		for i := range keys {
+			keys[i].Key = ""
+			keys[i].KeyMasked = ""
+		}
+		stats["keys"] = keys
+	}
+
+	writeJSON(w, http.StatusOK, stats)
 }

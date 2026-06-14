@@ -68,17 +68,26 @@ func main() {
 		port = "8080"
 	}
 
-	dbFile := os.Getenv("DATABASE_FILE")
-	if dbFile == "" {
-		dbFile = "proxy.db"
+	dbDriver := os.Getenv("DATABASE_DRIVER")
+	if dbDriver == "" {
+		dbDriver = "sqlite"
+	}
+
+	dbDSN := os.Getenv("DATABASE_DSN")
+	if dbDriver == "sqlite" && dbDSN == "" {
+		dbFile := os.Getenv("DATABASE_FILE")
+		if dbFile == "" {
+			dbFile = "proxy.db"
+		}
+		dbDSN = dbFile
 	}
 
 	adminPassword = os.Getenv("ADMIN_PASSWORD")
 
 	// 2. Initialize Store
-	store, err := NewStore(dbFile)
+	store, err := NewStore(dbDriver, dbDSN)
 	if err != nil {
-		fmt.Printf("CRITICAL: Failed to initialize SQLite store: %v\n", err)
+		fmt.Printf("CRITICAL: Failed to initialize database store: %v\n", err)
 		os.Exit(1)
 	}
 	storeInstance = store
@@ -87,7 +96,7 @@ func main() {
 	store.StartCooldownCleaner(context.Background())
 
 	LogInfo("DC AI API Proxy starting up...")
-	LogInfo("SQLite database file: %s", dbFile)
+	LogInfo("Database driver: %s", dbDriver)
 
 	go testAllKeysOnStartup(store)
 
@@ -129,6 +138,18 @@ func main() {
 		data, err := fs.ReadFile(webFS, "chat.html")
 		if err != nil {
 			http.Error(w, "Chat page not found", http.StatusNotFound)
+			return
+		}
+		w.Write(data)
+	})
+
+	// User Dashboard Page
+	mux.HandleFunc("GET /dashboard", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		data, err := fs.ReadFile(webFS, "dashboard.html")
+		if err != nil {
+			http.Error(w, "Dashboard page not found", http.StatusNotFound)
 			return
 		}
 		w.Write(data)
@@ -188,6 +209,31 @@ func main() {
 	// Public Guest Config route
 	mux.HandleFunc("GET /api/guest-config", handleGuestConfig)
 
+	// PWA routes
+	mux.HandleFunc("GET /manifest.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Content-Type", "application/json")
+		data, err := fs.ReadFile(webFS, "manifest.json")
+		if err != nil {
+			http.Error(w, "Manifest not found", http.StatusNotFound)
+			return
+		}
+		w.Write(data)
+	})
+	mux.HandleFunc("GET /sw.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Content-Type", "application/javascript")
+		data, err := fs.ReadFile(webFS, "sw.js")
+		if err != nil {
+			http.Error(w, "Service Worker not found", http.StatusNotFound)
+			return
+		}
+		w.Write(data)
+	})
+
+	// Public TTS API route
+	mux.HandleFunc("/api/tts", handleTTS)
+
 	// B.AI Proxied Client routes
 	proxyHandler := NewProxyHandler(store)
 	mux.Handle("/v1/", proxyHandler)
@@ -201,6 +247,8 @@ func main() {
 
 	// Admin API CRUD routes (B.AI Upstream Keys)
 	adminServer := NewAdminServer(store)
+	userServer := NewUserServer(store)
+
 	mux.HandleFunc("GET /admin/api/keys", adminServer.RequireAuth(adminServer.ListKeysHandler))
 	mux.HandleFunc("POST /admin/api/keys", adminServer.RequireAuth(adminServer.AddKeyHandler))
 	mux.HandleFunc("PUT /admin/api/keys/{id}", adminServer.RequireAuth(adminServer.UpdateKeyHandler))
@@ -217,6 +265,21 @@ func main() {
 	mux.HandleFunc("PUT /admin/api/client-keys/{id}", adminServer.RequireAuth(adminServer.UpdateClientKeyHandler))
 	mux.HandleFunc("DELETE /admin/api/client-keys/{id}", adminServer.RequireAuth(adminServer.DeleteClientKeyHandler))
 
+	// Admin API CRUD routes for Users
+	mux.HandleFunc("GET /admin/api/users", adminServer.RequireAuth(adminServer.AdminListUsersHandler))
+	mux.HandleFunc("PUT /admin/api/users/{id}/status", adminServer.RequireAuth(adminServer.AdminUpdateUserStatusHandler))
+	mux.HandleFunc("DELETE /admin/api/users/{id}", adminServer.RequireAuth(adminServer.AdminDeleteUserHandler))
+	mux.HandleFunc("GET /admin/api/users/{id}/stats", adminServer.RequireAuth(adminServer.AdminGetUserStatsHandler))
+
+	// User Self Portal APIs
+	mux.HandleFunc("POST /api/user/register", userServer.RegisterHandler)
+	mux.HandleFunc("POST /api/user/login", userServer.LoginHandler)
+	mux.HandleFunc("POST /api/user/logout", userServer.LogoutHandler)
+	mux.HandleFunc("GET /api/user/stats", userServer.RequireUserAuth(userServer.StatsHandler))
+	mux.HandleFunc("POST /api/user/keys", userServer.RequireUserAuth(userServer.AddKeyHandler))
+	mux.HandleFunc("PUT /api/user/keys/{id}", userServer.RequireUserAuth(userServer.UpdateKeyHandler))
+	mux.HandleFunc("DELETE /api/user/keys/{id}", userServer.RequireUserAuth(userServer.DeleteKeyHandler))
+
 	// Config and Login (Public/Auth endpoints)
 	mux.HandleFunc("GET /admin/api/config", adminServer.ConfigHandler)
 	mux.HandleFunc("POST /admin/api/login", adminServer.LoginHandler)
@@ -225,6 +288,10 @@ func main() {
 	// Settings routes
 	mux.HandleFunc("GET /admin/api/settings", adminServer.RequireAuth(adminServer.GetSettingsHandler))
 	mux.HandleFunc("PUT /admin/api/settings", adminServer.RequireAuth(adminServer.UpdateSettingsHandler))
+
+	// Backup & Restore routes
+	mux.HandleFunc("GET /admin/api/backup", adminServer.RequireAuth(adminServer.ExportBackupHandler))
+	mux.HandleFunc("POST /admin/api/restore", adminServer.RequireAuth(adminServer.ImportBackupHandler))
 
 	// Stats route
 	mux.HandleFunc("GET /admin/api/stats", adminServer.RequireAuth(adminServer.StatsHandler))
@@ -273,7 +340,7 @@ func main() {
 func testAllKeysOnStartup(s *Store) {
 	time.Sleep(1 * time.Second)
 
-	rows, err := s.db.Query("SELECT id, label, key, upstream_url, supports_openai, supports_gemini, supports_claude FROM upstream_keys WHERE status != 'disabled'")
+	rows, err := s.db.Query("SELECT id, label, `key`, upstream_url, supports_openai, supports_gemini, supports_claude FROM upstream_keys WHERE status != 'disabled'")
 	if err != nil {
 		LogError("Startup key test query failed: %v", err)
 		return
@@ -411,8 +478,66 @@ func handleGuestConfig(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]string{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"guest_api_key": guestKey,
 		"guest_model":   "dc-ai-model",
+		"tts_enabled":   os.Getenv("TTS_API_URL") != "",
 	})
+}
+
+func handleTTS(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	ttsURL := os.Getenv("TTS_API_URL")
+	if ttsURL == "" {
+		http.Error(w, "TTS service not configured", http.StatusNotFound)
+		return
+	}
+
+	ttsURL = strings.TrimSuffix(ttsURL, "/")
+	targetURL := ttsURL + "/api/tts"
+
+	var req *http.Request
+	var err error
+
+	if r.Method == http.MethodPost {
+		req, err = http.NewRequestWithContext(r.Context(), http.MethodPost, targetURL, r.Body)
+		if err != nil {
+			http.Error(w, "Failed to create upstream request: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		req.Header.Set("Content-Type", r.Header.Get("Content-Type"))
+	} else if r.Method == http.MethodGet {
+		targetURL = targetURL + "?" + r.URL.RawQuery
+		req, err = http.NewRequestWithContext(r.Context(), http.MethodGet, targetURL, nil)
+		if err != nil {
+			http.Error(w, "Failed to create upstream request: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		http.Error(w, "Failed to call upstream TTS: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	for k, v := range resp.Header {
+		for _, val := range v {
+			w.Header().Add(k, val)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+	_, _ = io.Copy(w, resp.Body)
 }

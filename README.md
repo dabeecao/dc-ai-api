@@ -33,6 +33,8 @@ A high-performance, resilient API Proxy built in **Go** designed to rotate multi
 * **High Concurrency Database Queue**: Features a thread-safe, non-blocking WAL database write queue to handle high-throughput statistics logging and token tracking seamlessly.
 * **Health Checks & Latency Tracking**: Validates keys on startup and logs active response latencies, visible directly in the admin dashboard.
 * **Secure Web Admin Panel**: Embedded glassmorphic control panel to manage client keys, upstream provider keys, fallback settings, and view real-time token/request statistics.
+* **User Portal & Self-Registration**: A dedicated self-service portal (`/dashboard`) for users to register, log in, generate their own Client API keys, and view personal usage stats.
+* **Admin User Management**: Admin panel includes a dedicated "Users" tab to approve pending user registrations, disable/enable, or delete users, and inspect detailed usage metrics per user.
 * **Client Chat UI**: A responsive, modern Web interface (`/chat`) with multi-modal file uploads, localized UI translations (EN/VI), smart autoscroll, and collapsible reasoning (thought) log rendering.
 
 ---
@@ -45,6 +47,7 @@ dc-ai-api/
 ├── proxy.go           # Core proxy forwarding, streaming SSE, and rotation logic
 ├── store.go           # SQLite database connection & high-concurrency write queue
 ├── admin.go           # Admin control panel APIs and CRUD operations
+├── user.go            # User portal registration, login, and key management APIs
 ├── search.go          # Keyless Web Search API (Tavily & Wikipedia fallbacks)
 ├── logger.go          # Custom centralized logger utility
 ├── dev.md             # Developer & advanced API documentation
@@ -61,6 +64,8 @@ dc-ai-api/
     ├── chat.html      # Client chat UI skeleton
     ├── chat.js        # Chat client frontend interactive logic
     ├── chat.css       # Chat layout and custom animations styling
+    ├── dashboard.html # User self-service portal skeleton
+    ├── dashboard.js   # User portal client-side interactive logic
     ├── locales/       # Multilingual translation dictionary files (en.json, vi.json)
     └── dist/          # Compiled and minified frontend assets (embedded in Go binary)
 ```
@@ -114,13 +119,20 @@ Start the compiled binary:
 make run
 ```
 
-Access the admin dashboard at `http://localhost:8080/admin` and the interactive chat client at `http://localhost:8080/chat`.
+Access the admin dashboard at `http://localhost:8080/admin`, the self-service User Portal at `http://localhost:8080/dashboard`, and the interactive chat client at `http://localhost:8080/chat`.
 
 ### 💬 Interactive Chat Client (`/chat`)
 
 The interactive chat client provides an intuitive user interface to converse with the rotated model pool:
 * **Guest Mode**: If enabled in the admin dashboard settings (`Enable Guest API Key`), guest users can chat immediately without entering an API key. In guest mode, model selection is locked to a virtual model (`dc-ai-model`) and file uploads are limited to 5MB.
 * **Key Required Mode**: If guest mode is disabled (or no guest key is configured), the chat input field is locked, and the interface automatically prompts the user to open settings and supply a valid Client API Key (prefixed with `dc_`) generated from the admin panel to start.
+
+### 👤 User Portal & Self-Registration (`/dashboard`)
+
+A self-service user portal allowing clients/users to create and manage their own accounts:
+* **Account Registration**: New users can self-register. Their account starts in a `pending` state until approved by the administrator.
+* **API Key Self-Service**: Once approved and logged in, users can create, copy, disable, or delete their own API keys (prefixed with `dc_`) to use in their applications.
+* **Usage Reports**: Users can view their active keys count, total tokens consumed, and a granular usage statistics table showing token consumption by model.
 
 ### 🐳 Run with Docker
 
@@ -201,6 +213,10 @@ To manage your API proxy, log in to the admin panel at `http://localhost:8080/ad
 4. **Settings & Fallback**:
    * Configure global fallback settings (default upstream URL, backup key, and fallback model) for high-availability.
    * Define request size limits (`max_request_size_kb`) to protect server memory.
+5. **Manage Users**:
+   * Go to the **Users** tab to view all registered users and their statistics.
+   * Approve pending user accounts, enable/disable users, or delete them entirely.
+   * Click on any user to view their keys and model-specific token consumption breakdown.
 
 ---
 

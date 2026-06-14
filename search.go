@@ -21,7 +21,6 @@ type SearchResult struct {
 	URL     string `json:"url"`
 }
 
-
 type TavilyResult struct {
 	URL     string  `json:"url"`
 	Title   string  `json:"title"`

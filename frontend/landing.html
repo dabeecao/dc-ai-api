@@ -7,7 +7,7 @@
     <meta name="description" content="A resilient, high-performance API load balancer and rotator proxy for OpenAI, Gemini Native, and Claude. Unified access interface with automatic key recovery.">
     <meta name="keywords" content="DC AI API, API Proxy, Key Rotator, Load Balancer, OpenAI, Claude, Gemini, Go API Proxy">
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='url(%23grad)'/%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b5cf6'/%3E%3Cstop offset='100%25' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold' font-size='14'%3EDC%3C/text%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='url(%23grad)'/%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b5cf6'/%3E%3Cstop offset='100%25' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg transform='translate(4, 4) scale(0.75)'%3E%3Cpath d='M16 3L28 10V22L16 29L4 22V10L16 3Z' stroke='%23ffffff' stroke-width='2.5' stroke-linejoin='round' fill='none' /%3E%3Cpath d='M16 10L22 13V19L16 22L10 19V13L16 10Z' fill='%23ffffff' opacity='0.35' /%3E%3Ccircle cx='16' cy='16' r='3' fill='%23ffffff' /%3E%3C/g%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -91,6 +91,13 @@
             align-items: center;
             padding: 1.5rem 0;
             margin-bottom: auto;
+            position: relative;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
 
         .logo-section {
@@ -273,8 +280,84 @@
             margin-top: 4rem;
         }
 
+        .menu-toggle-btn {
+            display: none;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition-fast);
+        }
+
+        .menu-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .language-selector-wrap i,
+        .language-selector-wrap svg {
+            position: absolute;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+        }
+
+        .language-selector-wrap select {
+            display: block !important;
+            text-align: center !important;
+            text-align-last: center !important;
+            padding: 0.35rem 2rem 0.35rem 2.25rem !important;
+        }
+
         /* Responsive */
-        @media (max-width: 768px) {
+        @media (max-width: 960px) {
+            .menu-toggle-btn {
+                display: inline-flex !important;
+            }
+
+            .header-controls {
+                display: none !important;
+                flex-direction: column;
+                align-items: stretch !important;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: rgba(9, 14, 26, 0.98);
+                border-bottom: 1px solid var(--border-color);
+                padding: 1.5rem;
+                gap: 1rem;
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+                z-index: 999;
+            }
+
+            header.menu-open .header-controls {
+                display: flex !important;
+                animation: headerControlsSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+
+            .header-controls .language-selector-wrap {
+                margin: 0 auto !important;
+                width: 130px !important;
+            }
+
+            .header-controls select {
+                width: 130px !important;
+                padding-left: 2.25rem !important;
+                padding-right: 2rem !important;
+                height: 38px !important;
+            }
+
+            .header-controls .btn {
+                width: 100% !important;
+                justify-content: center;
+                padding: 0.6rem !important;
+            }
+
             .glowing-blob {
                 display: none;
             }
@@ -283,6 +366,17 @@
             }
             .hero p {
                 font-size: 1.1rem;
+            }
+        }
+
+        @keyframes headerControlsSlideDown {
+            from {
+                transform: translateY(-10px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
             }
         }
 
@@ -422,6 +516,311 @@
             font-size: 1rem;
             margin-bottom: 0.5rem;
         }
+
+        /* Showcase Section */
+        .showcase-section {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 4rem;
+            margin-top: 5rem;
+            align-items: center;
+            padding: 3rem 0;
+            border-top: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        .showcase-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .showcase-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--color-violet);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: rgba(139, 92, 246, 0.1);
+            padding: 0.35rem 0.75rem;
+            border-radius: 2rem;
+            width: fit-content;
+        }
+
+        .showcase-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1.2;
+            background: linear-gradient(135deg, #ffffff 60%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .showcase-desc {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            line-height: 1.6;
+        }
+
+        .chat-features-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .chat-feature-item {
+            display: flex;
+            gap: 1.25rem;
+            align-items: flex-start;
+        }
+
+        .chat-feature-icon {
+            width: 2.25rem;
+            height: 2.25rem;
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            color: var(--color-primary);
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.05);
+        }
+
+        .chat-feature-text h4 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .chat-feature-text p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-top: 0.25rem;
+        }
+
+        /* Chat Mockup Preview on Right Column */
+        .chat-mockup {
+            background: rgba(13, 20, 38, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 1.25rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), var(--shadow-glow);
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            height: 440px;
+            position: relative;
+            border-left: 2px solid rgba(99, 102, 241, 0.3);
+            text-align: left;
+        }
+
+        .chat-mockup::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+        }
+
+        .mock-header {
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.85rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .mock-avatar {
+            width: 1.85rem;
+            height: 1.85rem;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-violet));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mock-avatar svg {
+            width: 60%;
+            height: 60%;
+        }
+
+        .mock-status {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mock-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .mock-model {
+            font-size: 0.72rem;
+            color: var(--color-active);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .mock-model-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--color-active);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+
+        .mock-body {
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+            flex: 1;
+            font-size: 0.85rem;
+        }
+
+        .mock-raw {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .mock-message {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            max-width: 85%;
+        }
+
+        .mock-message.user {
+            align-self: flex-end;
+        }
+
+        .mock-message.assistant {
+            align-self: flex-start;
+        }
+
+        .mock-bubble {
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .mock-message.user .mock-bubble {
+            background: var(--color-primary);
+            color: #ffffff;
+            border-bottom-right-radius: 0.25rem;
+        }
+
+        .mock-message.assistant .mock-bubble {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            border-bottom-left-radius: 0.25rem;
+        }
+
+        /* Deep Thinking block */
+        .mock-thought-box {
+            border-left: 2px solid var(--color-violet);
+            background: rgba(139, 92, 246, 0.04);
+            padding: 0.6rem 0.85rem;
+            border-radius: 0.25rem 0.5rem 0.5rem 0.25rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: #c084fc;
+            margin-bottom: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .mock-thought-header {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-weight: 600;
+        }
+
+        .mock-search-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            padding: 0.35rem 0.75rem;
+            border-radius: 0.5rem;
+            width: fit-content;
+            margin-bottom: 0.5rem;
+        }
+
+        .mock-search-status i, .mock-search-status svg {
+            color: var(--color-primary);
+        }
+
+        .mock-footer {
+            padding: 0.75rem 1.25rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .mock-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 0.85rem;
+            border-radius: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .mock-send-btn {
+            width: 2rem;
+            height: 2rem;
+            background: var(--color-primary);
+            border: none;
+            border-radius: 0.5rem;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Responsive showcase */
+        @media (max-width: 992px) {
+            .showcase-section {
+                grid-template-columns: 1fr;
+                gap: 2.5rem;
+                margin-top: 3rem;
+                padding: 2rem 0;
+            }
+            .chat-mockup {
+                height: 400px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -440,26 +839,37 @@
                 </div>
                 <span class="logo-title">DC AI API Proxy</span>
             </div>
-            <div>
+            <button class="menu-toggle-btn" id="mobileMenuBtn" aria-label="Toggle Navigation">
+                <i data-lucide="menu"></i>
+            </button>
+            <div class="header-controls">
+                <div class="language-selector-wrap" style="position: relative; display: flex; align-items: center;">
+                    <select id="languageSelect" class="btn btn-secondary" style="padding: 0.5rem 2.25rem 0.5rem 2.25rem; font-size: 0.875rem; appearance: none; -webkit-appearance: none; cursor: pointer; border-radius: 0.75rem; background-position: right 0.75rem center; background-repeat: no-repeat; text-transform: uppercase;">
+                        <option value="vi">VI</option>
+                        <option value="en">EN</option>
+                    </select>
+                    <i data-lucide="globe" style="position: absolute; left: 0.85rem; width: 0.9rem; height: 0.9rem; color: var(--text-secondary); pointer-events: none;"></i>
+                    <i data-lucide="chevron-down" style="position: absolute; right: 0.75rem; width: 0.8rem; height: 0.8rem; color: var(--text-secondary); pointer-events: none;"></i>
+                </div>
                 <a href="https://dabeecao.org#donate" target="_blank" class="btn btn-secondary" style="padding: 0.5rem 1.25rem; font-size: 0.875rem;">
-                    <i data-lucide="heart"></i> Donate
+                    <i data-lucide="heart"></i> <span id="lblDonate">Donate</span>
                 </a>
             </div>
         </header>
 
         <section class="hero">
-            <h1>Unified Gateway for rotative LLM APIs</h1>
-            <p>A high-performance, resilient proxy database designed to rotate API credentials, balance request traffic, and perform live protocol formatting translations for OpenAI, Gemini, and Claude.</p>
+            <h1 id="lblLandingH1">Unified Gateway for rotative LLM APIs</h1>
+            <p id="lblLandingDesc">A high-performance, resilient proxy database designed to rotate API credentials, balance request traffic, and perform live protocol formatting translations for OpenAI, Gemini, and Claude.</p>
             
             <div class="cta-group">
-                <a href="/chat" class="btn btn-primary">
+                <a href="/chat" class="btn btn-primary" id="lblLandingStartChatting">
                     <i data-lucide="message-square"></i> Start Chatting
                 </a>
-                <a href="/docs" class="btn btn-secondary">
-                    <i data-lucide="book-open"></i> Explore API Docs
+                <a href="/dashboard" class="btn btn-secondary" id="lblLandingUserPortal">
+                    <i data-lucide="user"></i> User Portal
                 </a>
-                <a href="/admin" class="btn btn-secondary">
-                    <i data-lucide="layout-dashboard"></i> Admin Dashboard
+                <a href="/docs" class="btn btn-secondary" id="lblLandingExploreDocs">
+                    <i data-lucide="book-open"></i> Explore API Docs
                 </a>
             </div>
         </section>
@@ -467,20 +877,117 @@
         <div class="features-grid">
             <div class="feature-card">
                 <div class="feature-icon"><i data-lucide="refresh-cw"></i></div>
-                <h3>Key Rotation & Failover</h3>
-                <p>Ensures zero-downtime integrations by automatically rotating active upstream API keys using a fast Round-Robin lookup with automatic retry logic.</p>
+                <h3 id="lblCard1Title">Key Rotation & Failover</h3>
+                <p id="lblCard1Desc">Ensures zero-downtime integrations by automatically rotating active upstream API keys using a fast Round-Robin lookup with automatic retry logic.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon"><i data-lucide="languages"></i></div>
-                <h3>Protocol Translation</h3>
-                <p>Allows unified endpoints compatibility. Translate requests structures dynamically to matches Gemini Native and Claude protocols seamlessly.</p>
+                <h3 id="lblCard2Title">Protocol Translation</h3>
+                <p id="lblCard2Desc">Allows unified endpoints compatibility. Translate requests structures dynamically to matches Gemini Native and Claude protocols seamlessly.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon"><i data-lucide="shield-check"></i></div>
-                <h3>Auto-Recovery & Health</h3>
-                <p>Verifies keys health dynamically on startup. Moves rate-limited keys into cool down states automatically and recovers them in background.</p>
+                <h3 id="lblCard3Title">Auto-Recovery & Health</h3>
+                <p id="lblCard3Desc">Verifies keys health dynamically on startup. Moves rate-limited keys into cool down states automatically and recovers them in background.</p>
             </div>
         </div>
+
+        <section class="showcase-section">
+            <div class="showcase-content">
+                <div class="showcase-tag">
+                    <i data-lucide="sparkles" style="width: 0.85rem; height: 0.85rem;"></i>
+                    <span id="lblShowcaseTag">Premium Chat Client</span>
+                </div>
+                <h2 class="showcase-title" id="lblShowcaseTitle">Next-Gen AI Chat Experience</h2>
+                <p class="showcase-desc" id="lblShowcaseDesc">Interact directly with the active rotation model pool using a sleek, glassmorphic chat client designed for modern AI interactions.</p>
+                
+                <div class="chat-features-list">
+                    <div class="chat-feature-item">
+                        <div class="chat-feature-icon">
+                            <i data-lucide="brain" style="width: 1rem; height: 1rem;"></i>
+                        </div>
+                        <div class="chat-feature-text">
+                            <h4 id="lblShowcaseF1Title">Interactive Thinking Logs</h4>
+                            <p id="lblShowcaseF1Desc">Beautiful, violet-bordered collapsible blocks to inspect reasoning processes from DeepSeek-R1, OpenAI o1/o3, and Gemini Thinking models.</p>
+                        </div>
+                    </div>
+                    <div class="chat-feature-item">
+                        <div class="chat-feature-icon">
+                            <i data-lucide="globe" style="width: 1rem; height: 1rem;"></i>
+                        </div>
+                        <div class="chat-feature-text">
+                            <h4 id="lblShowcaseF2Title">Real-Time Web Search</h4>
+                            <p id="lblShowcaseF2Desc">Enrich prompts with up-to-date context from Tavily and Wikipedia searches, synthesized directly into the discussion with source citations.</p>
+                        </div>
+                    </div>
+                    <div class="chat-feature-item">
+                        <div class="chat-feature-icon">
+                            <i data-lucide="image" style="width: 1rem; height: 1rem;"></i>
+                        </div>
+                        <div class="chat-feature-text">
+                            <h4 id="lblShowcaseF3Title">Multimodal Vision & Compression</h4>
+                            <p id="lblShowcaseF3Desc">Upload files and images easily. Includes canvas-based image downscaling and compression to optimize token consumption and performance.</p>
+                        </div>
+                    </div>
+                    <div class="chat-feature-item">
+                        <div class="chat-feature-icon">
+                            <i data-lucide="volume-2" style="width: 1rem; height: 1rem;"></i>
+                        </div>
+                        <div class="chat-feature-text">
+                            <h4 id="lblShowcaseF4Title">Incremental Text-to-Speech</h4>
+                            <p id="lblShowcaseF4Desc">Listen to response content read aloud line-by-line with parallel audio prefetching and automatic filter queues (code & thought blocks excluded).</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-mockup">
+                <div class="mock-header">
+                    <div class="mock-avatar">
+                        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 60%; height: 60%;">
+                            <path d="M16 3L28 10V22L16 29L4 22V10L16 3Z" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round" />
+                            <circle cx="16" cy="16" r="3" fill="#ffffff" />
+                        </svg>
+                    </div>
+                    <div class="mock-status">
+                        <span class="mock-name">DC AI Assistant</span>
+                        <span class="mock-model">
+                            <span class="mock-model-dot"></span>
+                            <span>gemini-2.5-flash</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="mock-body">
+                    <div class="mock-message user">
+                        <div class="mock-bubble" id="lblMockUserMsg">
+                            Tell me about DeepSeek R1 and search the web for its release date.
+                        </div>
+                    </div>
+                    <div class="mock-message assistant">
+                        <div class="mock-search-status">
+                            <i data-lucide="search" style="width: 0.8rem; height: 0.8rem; margin-right: 0.25rem;"></i>
+                            <span id="lblMockSearchStatus">Searching: DeepSeek R1 release date...</span>
+                        </div>
+                        <div class="mock-thought-box">
+                            <div class="mock-thought-header">
+                                <i data-lucide="brain" style="width: 0.8rem; height: 0.8rem; margin-right: 0.25rem;"></i>
+                                <span id="lblMockThoughtHeader">Thinking Process</span>
+                            </div>
+                            <div id="lblMockThoughtBody" style="opacity: 0.8;">User is asking about DeepSeek R1 release date. Tavily returned Jan 20, 2025. Summarizing features: open-source, reasoning performance...</div>
+                        </div>
+                        <div class="mock-bubble" id="lblMockAssistantMsg">
+                            <strong>DeepSeek-R1</strong> was officially released on <strong>January 20, 2025</strong>. It is a state-of-the-art open-source reasoning model developed by DeepSeek, featuring competitive performance on mathematics, code, and logic.
+                        </div>
+                    </div>
+                </div>
+                <div class="mock-footer">
+                    <div class="mock-input" id="lblMockInput">Ask a question or type '/' for commands...</div>
+                    <button class="mock-send-btn">
+                        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </div>
+            </div>
+        </section>
 
         <footer>
             &copy; 2026 DC AI API Proxy. All rights reserved. | <a href="#" id="privacyTermsBtn" style="color: var(--color-primary); text-decoration: none; margin-left: 0.5rem; transition: var(--transition-smooth);" onmouseover="this.style.color='#8b5cf6'" onmouseout="this.style.color='#6366f1'">Privacy & Terms</a>
@@ -491,12 +998,12 @@
     <div class="modal" id="privacyTermsModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">Privacy Policy & Terms of Service</h3>
+                <h3 class="modal-title" id="lblPrivacyModalTitle">Privacy Policy & Terms of Service</h3>
                 <button class="modal-close-btn" id="privacyTermsCloseBtn">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" id="lblPrivacyModalBody">
                 <div>
                     <h4>Privacy Policy</h4>
                     <ul style="padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; list-style-type: disc; margin-top: 0.5rem;">

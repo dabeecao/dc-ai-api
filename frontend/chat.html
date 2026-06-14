@@ -2,19 +2,37 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <title>DC AI Chat Client</title>
     <meta name="description" content="Professional Chat AI interface integrated with DC AI API Proxy">
     <meta name="keywords" content="DC AI API, Chat Client, AI Chat, API Proxy, Key Rotator, OpenAI, Claude, Gemini">
     <meta property="og:title" content="DC AI Chat Client">
     <meta property="og:description" content="Professional Chat AI interface integrated with DC AI API Proxy">
     <meta property="og:type" content="website">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='url(%23grad)'/%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b5cf6'/%3E%3Cstop offset='100%25' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold' font-size='14'%3EDC%3C/text%3E%3C/svg%3E">
+    
+    <!-- PWA & Apple Standalone App Support -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DC AI Chat">
+    <link rel="apple-touch-icon" href="/admin/icon.svg">
+    <link rel="manifest" href="/manifest.json">
+    
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='url(%23grad)'/%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238b5cf6'/%3E%3Cstop offset='100%25' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg transform='translate(4, 4) scale(0.75)'%3E%3Cpath d='M16 3L28 10V22L16 29L4 22V10L16 3Z' stroke='%23ffffff' stroke-width='2.5' stroke-linejoin='round' fill='none' /%3E%3Cpath d='M16 10L22 13V19L16 22L10 19V13L16 10Z' fill='%23ffffff' opacity='0.35' /%3E%3Ccircle cx='16' cy='16' r='3' fill='%23ffffff' /%3E%3C/g%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="chat.css">
     <script type="module" src="chat.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registered with scope:', reg.scope))
+                    .catch(err => console.error('Service Worker registration failed:', err));
+            });
+        }
+    </script>
 </head>
 <body>
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
@@ -83,7 +101,7 @@
                             <div class="custom-select-popover" id="modelSelectPopover">
                                 <div class="popover-search-box">
                                     <i data-lucide="search" class="search-icon" style="width:0.875rem;height:0.875rem;"></i>
-                                    <input type="text" class="popover-search-input" id="modelSearchInput" placeholder="Tìm hoặc nhập model...">
+                                    <input type="text" class="popover-search-input" id="modelSearchInput" placeholder="Tìm tên model...">
                                 </div>
                                 <div class="popover-options-list" id="modelOptionsList">
                                     <!-- Options will be dynamically populated -->
@@ -166,7 +184,7 @@
                         <i data-lucide="settings-2" style="width: 0.95rem; height: 0.95rem; color: var(--color-primary);"></i>
                         <span id="lblAdvancedSettings">Cài đặt nâng cao / Advanced Settings</span>
                     </summary>
-                    <div style="margin-top: 0.75rem;">
+                    <div style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.75rem;">
                         <div class="input-group">
                             <label class="input-label" for="apiKeyInput" id="lblApiKeyLabel">Client API Key (dc_...)</label>
                             <div class="input-field-wrapper">
@@ -177,10 +195,32 @@
                                     placeholder="Nhập Client Key của bạn"
                                 >
                                 <button type="button" class="toggle-password-btn" id="togglePasswordBtn">
-                                    <i data-lucide="eye" style="width:1.1rem;height:1.1rem;" id="eyeIcon"></i>
+                                    <i data-lucide="eye" style="width:1.1rem;height:1.1rem;"></i>
                                 </button>
                             </div>
                         </div>
+                        <div class="input-group">
+                            <label class="input-label" for="baseUrlInput" id="lblBaseUrlLabel">Base URL Proxy</label>
+                            <input 
+                                type="text" 
+                                class="input-field" 
+                                id="baseUrlInput" 
+                                placeholder="http://localhost:8080"
+                            >
+                        </div>
+                        <div class="input-group" id="apiTypeContainer" style="display: none;">
+                            <label class="input-label" for="apiTypeSelect" id="lblApiTypeLabel">Loại API</label>
+                            <select class="input-field" id="apiTypeSelect">
+                                <option value="auto" id="optApiAuto">Tự động nhận diện</option>
+                                <option value="openai">OpenAI Compatible</option>
+                                <option value="gemini">Gemini Native</option>
+                                <option value="claude">Claude Native</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn btn-secondary" id="apiTestBtn" style="width: 100%; margin-top: 0.25rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <i data-lucide="refresh-cw" style="width: 0.95rem; height: 0.95rem;" id="testBtnIcon"></i>
+                            <span id="lblApiTestBtn">Kiểm tra kết nối</span>
+                        </button>
                     </div>
                 </details>
 
@@ -203,6 +243,23 @@
                     </select>
                 </div>
 
+                <div class="input-group" id="ttsVoiceGroup" style="display: none;">
+                    <label class="input-label" for="ttsVoiceSelect" id="lblTtsVoiceLabel">Giọng đọc AI (TTS Voice)</label>
+                    <select class="input-field" id="ttsVoiceSelect">
+                        <option value="BV074_streaming" id="ttsVoiceOpt_BV074">Giọng Nữ Việt Nam (vi-VN)</option>
+                        <option value="BV075_streaming" id="ttsVoiceOpt_BV075">Giọng Nam Việt Nam (vi-VN)</option>
+                        <option value="en_us_001" id="ttsVoiceOpt_en_us_001">Giọng Nữ Mỹ (Female en-US)</option>
+                        <option value="en_us_006" id="ttsVoiceOpt_en_us_006">Giọng Nam Mỹ (Male en-US)</option>
+                        <option value="en_uk_001" id="ttsVoiceOpt_en_uk_001">Giọng Nam Anh (Male en-GB)</option>
+                        <option value="BV700_streaming" id="ttsVoiceOpt_BV700">Căn Căn (Giọng Nữ Trung Quốc - zh-CN)</option>
+                        <option value="BV001_streaming" id="ttsVoiceOpt_BV001">Giọng Nữ phổ thông Trung Quốc (zh-CN)</option>
+                        <option value="BV002_streaming" id="ttsVoiceOpt_BV002">Giọng Nam phổ thông Trung Quốc (zh-CN)</option>
+                        <option value="jp_001" id="ttsVoiceOpt_jp_001">Giọng Nữ Nhật Bản (Cute Female - ja-JP)</option>
+                        <option value="BV059_streaming" id="ttsVoiceOpt_BV059">Giọng Nữ Hàn Quốc (Female ko-KR)</option>
+                        <option value="kr_male_gye" id="ttsVoiceOpt_kr_male_gye">Giọng Nam Hàn Quốc (Male ko-KR)</option>
+                    </select>
+                </div>
+
                 <details style="border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.01); margin-top: 0.75rem;">
                     <summary style="cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); user-select: none; display: flex; align-items: center; gap: 0.5rem; outline: none;">
                         <i data-lucide="shield-check" style="width: 0.95rem; height: 0.95rem; color: var(--color-primary);"></i>
@@ -214,8 +271,33 @@
                 </details>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" id="modalCancelBtn">Hủy</button>
-                <button class="btn btn-primary" id="modalSaveBtn">Lưu & Tải lại</button>
+                <button class="btn btn-secondary" id="modalCancelBtn" style="display: flex; align-items: center; gap: 0.4rem;">
+                    <i data-lucide="x" style="width:0.95rem;height:0.95rem;"></i>
+                    <span id="lblModalCancelBtn">Hủy</span>
+                </button>
+                <button class="btn btn-primary" id="modalSaveBtn" style="display: flex; align-items: center; gap: 0.4rem;">
+                    <i data-lucide="save" style="width:0.95rem;height:0.95rem;"></i>
+                    <span id="lblModalSaveBtn">Lưu & Tải lại</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Dialog -->
+    <div class="modal" id="confirmModal">
+        <div class="modal-content" style="width: 400px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="confirmTitle">Xác nhận</h3>
+                <button class="modal-close-btn" id="confirmCloseBtn">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="padding-top: 0.5rem; overflow-y: hidden;">
+                <p id="confirmMessage" style="font-size: 0.9rem; line-height: 1.5; color: var(--text-secondary);"></p>
+            </div>
+            <div class="modal-footer" style="margin-top: 0;">
+                <button class="btn btn-secondary" id="confirmCancelBtn">Hủy</button>
+                <button class="btn btn-primary" id="confirmOkBtn" style="background: var(--color-failed); color: #ffffff;">Đồng ý</button>
             </div>
         </div>
     </div>

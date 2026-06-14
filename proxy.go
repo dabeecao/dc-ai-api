@@ -230,10 +230,10 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if isGuest {
 			mergedModels := []interface{}{
 				map[string]interface{}{
-					"name":        "models/dc-ai-model",
-					"version":     "v1beta",
-					"displayName": "DC AI Model",
-					"description": "Virtual model masked by the proxy.",
+					"name":                       "models/dc-ai-model",
+					"version":                    "v1beta",
+					"displayName":                "DC AI Model",
+					"description":                "Virtual model masked by the proxy.",
 					"supportedGenerationMethods": []string{"generateContent", "streamGenerateContent"},
 				},
 			}
@@ -258,10 +258,10 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							if !modelMap[normalized] {
 								modelMap[normalized] = true
 								mergedModels = append(mergedModels, map[string]interface{}{
-									"name":        "models/" + normalized,
-									"version":     "v1beta",
-									"displayName": normalized,
-									"description": "Proxied Gemini model",
+									"name":                       "models/" + normalized,
+									"version":                    "v1beta",
+									"displayName":                normalized,
+									"description":                "Proxied Gemini model",
 									"supportedGenerationMethods": []string{"generateContent", "streamGenerateContent"},
 								})
 							}
@@ -278,10 +278,10 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				fallbackModel = settings["fallback_model"]
 			}
 			mergedModels = append(mergedModels, map[string]interface{}{
-				"name":        "models/" + fallbackModel,
-				"version":     "v1beta",
-				"displayName": fallbackModel,
-				"description": "Fallback Gemini model",
+				"name":                       "models/" + fallbackModel,
+				"version":                    "v1beta",
+				"displayName":                fallbackModel,
+				"description":                "Fallback Gemini model",
 				"supportedGenerationMethods": []string{"generateContent", "streamGenerateContent"},
 			})
 		}
@@ -460,10 +460,10 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	isDcAssistant := strings.EqualFold(requestedModel, "dc-assistant")
 	if isDcAssistant {
-		requestedModel = "gemini-2.5-flash-lite"
+		requestedModel = targetModel
 		if isNativeGemini {
 			oldSegment := "/models/dc-assistant"
-			newSegment := "/models/gemini-2.5-flash-lite"
+			newSegment := "/models/" + targetModel
 			if strings.Contains(r.URL.Path, oldSegment+":") {
 				r.URL.Path = strings.Replace(r.URL.Path, oldSegment+":", newSegment+":", 1)
 			} else if strings.Contains(r.URL.Path, oldSegment) {
@@ -472,12 +472,12 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			if r.Method == http.MethodGet {
 				oldPathSegment := "/models/dc-assistant"
-				newPathSegment := "/models/gemini-2.5-flash-lite"
+				newPathSegment := "/models/" + targetModel
 				if strings.Contains(r.URL.Path, oldPathSegment) {
 					r.URL.Path = strings.Replace(r.URL.Path, oldPathSegment, newPathSegment, 1)
 				}
 			} else if len(bodyBytes) > 0 && reqMap != nil {
-				reqMap["model"] = "gemini-2.5-flash-lite"
+				reqMap["model"] = targetModel
 				if updatedBytes, err := json.Marshal(reqMap); err == nil {
 					bodyBytes = updatedBytes
 				}
@@ -489,8 +489,11 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		bodyBytes = restoreThoughtSignatures(bodyBytes)
 	}
 
-	// Clean up unsupported schema fields (like enumDescriptions, enum_descriptions, and items in non-arrays) from JSON body if present to prevent Gemini API 400 errors
 	if len(bodyBytes) > 0 {
+		// 1. Flatten text-only content arrays in messages to plain strings for general compatibility (e.g. Xiaomi)
+		bodyBytes = flattenTextContentParts(bodyBytes)
+
+		// 2. Clean up unsupported schema fields (like enumDescriptions, enum_descriptions, and items in non-arrays) from JSON body if present to prevent Gemini API 400 errors
 		var parsedBody interface{}
 		if err := json.Unmarshal(bodyBytes, &parsedBody); err == nil {
 			parsedBody = sanitizeGeminiPayload(parsedBody)
@@ -502,11 +505,11 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	maxAttempts := 3
 	var lastErr error
 	isFallbackMode := false
 	var excludedIDs []string
 	resourceFailures := 0
+	attempt := 0
 
 	// Load fallback settings upfront from database (configured via Admin settings)
 	fallbackSettings, _ := p.store.GetSettings()
@@ -536,7 +539,8 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
+	for {
+		attempt++
 		if r.Context().Err() != nil {
 			LogWarn("Client disconnected/cancelled context before attempt %d. Aborting request rotation.", attempt)
 			return
@@ -607,7 +611,7 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if isFallbackMode {
-			p.store.RecordGCLIRequest() // track fallback request count
+			p.store.RecordFallbackRequest() // track fallback request count
 		}
 
 		// Determine target URL
@@ -649,7 +653,7 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			targetURL += "?" + r.URL.RawQuery
 		}
 
-		LogInfo("[Attempt %d/%d] Proxying %s (Model: %s) using key: %s (%s) to %s", attempt, maxAttempts, r.URL.Path, requestedModel, key.Label, maskKey(key.Key), targetURL)
+		LogInfo("[Attempt %d] Proxying %s (Model: %s) using key: %s (%s) to %s", attempt, r.URL.Path, requestedModel, key.Label, maskKey(key.Key), targetURL)
 
 		ctx := r.Context()
 		outReq, err := http.NewRequestWithContext(ctx, r.Method, targetURL, bytes.NewReader(bodyBytes))
@@ -704,21 +708,17 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				excludedIDs = append(excludedIDs, key.ID)
 			}
 			if isFallbackMode {
-				p.store.RecordGCLIFailure()
+				p.store.RecordFallbackFailure()
+				p.store.RecordFailure("fallback", err.Error(), 502)
 				LogWarn("Upstream connection failure with fallback key %s: %v. Aborting retry.", key.Label, err)
 				lastErr = err
 				break
 			}
 			LogWarn("Upstream connection failure with key %s: %v. Retrying...", key.Label, err)
 			lastErr = err
-
 			resourceFailures++
-
-			if !isFallbackMode {
-				if attempt == maxAttempts {
-					maxAttempts++
-				}
-			}
+			// Continue to next attempt; the loop will trigger fallback via resourceFailures >= 3
+			// or when GetNextKeyForModelAndType finds no more eligible keys.
 			continue
 		}
 
@@ -743,16 +743,9 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			if isRequestSpecificError(resp.StatusCode, errorStr) {
-				LogWarn("Request-specific error encountered (HTTP %d). Aborting retry to avoid credit drain. Error: %s", resp.StatusCode, errorStr)
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(resp.StatusCode)
-				w.Write(errBody)
-				return
-			}
-
 			if isFallbackMode {
-				p.store.RecordGCLIFailure()
+				p.store.RecordFallbackFailure()
+				p.store.RecordFailure("fallback", fmt.Sprintf("HTTP %d: %s", resp.StatusCode, errorStr), resp.StatusCode)
 				LogWarn("Upstream returned error %d for fallback key %s. Error: %s. Aborting retry.", resp.StatusCode, key.Label, errorStr)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(resp.StatusCode)
@@ -764,22 +757,9 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden {
 				resourceFailures++
 			}
-
-			if !isFallbackMode {
-				if attempt == maxAttempts {
-					maxAttempts++
-				}
-				continue
-			}
-
-			if attempt < maxAttempts {
-				continue
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(resp.StatusCode)
-			w.Write(errBody)
-			return
+			// Continue to next attempt; the loop will trigger fallback via resourceFailures >= 3
+			// or when GetNextKeyForModelAndType finds no more eligible keys.
+			continue
 		}
 
 		// Success
@@ -825,13 +805,13 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					p.store.RecordSuccess(key.ID, promptTokens, completionTokens, duration.Milliseconds())
 				}
 				if isFallbackMode {
-					p.store.RecordGCLISuccess(promptTokens, completionTokens)
+					p.store.RecordFallbackSuccess(promptTokens, completionTokens)
 				}
 				if token != "" {
-					p.store.RecordClientKeyTokens(token, promptTokens, completionTokens)
+					p.store.RecordClientKeyTokensWithModel(token, requestedModel, promptTokens, completionTokens)
 				}
-				if isDcAssistant {
-					respBytes = bytes.ReplaceAll(respBytes, []byte("gemini-2.5-flash-lite"), []byte("dc-assistant"))
+				if isDcAssistant && targetModel != "" {
+					respBytes = bytes.ReplaceAll(respBytes, []byte(targetModel), []byte("dc-assistant"))
 				}
 				if isDcAIModel && targetModel != "" {
 					respBytes = bytes.ReplaceAll(respBytes, []byte(targetModel), []byte("dc-ai-model"))
@@ -848,8 +828,8 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				n, err := resp.Body.Read(buffer)
 				if n > 0 {
 					chunk := buffer[:n]
-					if isDcAssistant {
-						chunk = bytes.ReplaceAll(chunk, []byte("gemini-2.5-flash-lite"), []byte("dc-assistant"))
+					if isDcAssistant && targetModel != "" {
+						chunk = bytes.ReplaceAll(chunk, []byte(targetModel), []byte("dc-assistant"))
 					}
 					if isDcAIModel && targetModel != "" {
 						chunk = bytes.ReplaceAll(chunk, []byte(targetModel), []byte("dc-ai-model"))
@@ -862,10 +842,10 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							p.store.RecordSuccess(key.ID, promptTokens, completionTokens, duration.Milliseconds())
 						}
 						if isFallbackMode {
-							p.store.RecordGCLISuccess(promptTokens, completionTokens)
+							p.store.RecordFallbackSuccess(promptTokens, completionTokens)
 						}
 						if token != "" {
-							p.store.RecordClientKeyTokens(token, promptTokens, completionTokens)
+							p.store.RecordClientKeyTokensWithModel(token, requestedModel, promptTokens, completionTokens)
 						}
 						return
 					}
@@ -923,10 +903,10 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				p.store.RecordSuccess(key.ID, promptTokens, completionTokens, duration.Milliseconds())
 			}
 			if isFallbackMode {
-				p.store.RecordGCLISuccess(promptTokens, completionTokens)
+				p.store.RecordFallbackSuccess(promptTokens, completionTokens)
 			}
 			if token != "" {
-				p.store.RecordClientKeyTokens(token, promptTokens, completionTokens)
+				p.store.RecordClientKeyTokensWithModel(token, requestedModel, promptTokens, completionTokens)
 			}
 		} else {
 			respBytes, readErr := io.ReadAll(resp.Body)
@@ -953,14 +933,14 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					p.store.RecordSuccess(key.ID, promptTokens, completionTokens, duration.Milliseconds())
 				}
 				if isFallbackMode {
-					p.store.RecordGCLISuccess(promptTokens, completionTokens)
+					p.store.RecordFallbackSuccess(promptTokens, completionTokens)
 				}
 				if token != "" {
-					p.store.RecordClientKeyTokens(token, promptTokens, completionTokens)
+					p.store.RecordClientKeyTokensWithModel(token, requestedModel, promptTokens, completionTokens)
 				}
 
-				if isDcAssistant {
-					respBytes = bytes.ReplaceAll(respBytes, []byte("gemini-2.5-flash-lite"), []byte("dc-assistant"))
+				if isDcAssistant && targetModel != "" {
+					respBytes = bytes.ReplaceAll(respBytes, []byte(targetModel), []byte("dc-assistant"))
 				}
 				if isDcAIModel && targetModel != "" {
 					respBytes = bytes.ReplaceAll(respBytes, []byte(targetModel), []byte("dc-ai-model"))
@@ -975,10 +955,10 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					p.store.RecordSuccess(key.ID, promptTokens, 0, duration.Milliseconds())
 				}
 				if isFallbackMode {
-					p.store.RecordGCLISuccess(promptTokens, 0)
+					p.store.RecordFallbackSuccess(promptTokens, 0)
 				}
 				if token != "" {
-					p.store.RecordClientKeyTokens(token, promptTokens, 0)
+					p.store.RecordClientKeyTokensWithModel(token, requestedModel, promptTokens, 0)
 				}
 			}
 		}
@@ -1185,70 +1165,6 @@ func isToolResponse(bodyBytes []byte, isNativeGemini bool) bool {
 	return false
 }
 
-func isRequestSpecificError(statusCode int, body string) bool {
-	// 400 Bad Request: client error
-	if statusCode == http.StatusBadRequest {
-		// Check if it's actually a billing or quota limit error rather than a bad client request.
-		lowerBody := strings.ToLower(body)
-		if strings.Contains(lowerBody, "insufficient balance") ||
-			strings.Contains(lowerBody, "insufficient_user_quota") ||
-			strings.Contains(lowerBody, "insufficient quota") ||
-			strings.Contains(lowerBody, "out of credit") ||
-			strings.Contains(lowerBody, "billing") ||
-			strings.Contains(lowerBody, "quota") {
-			return false // This is a key/billing failure, so rotate/fallback instead of returning immediately!
-		}
-		return true
-	}
-	// 413 Payload Too Large / Request Entity Too Large
-	if statusCode == http.StatusRequestEntityTooLarge {
-		return true
-	}
-	// 415 Unsupported Media Type
-	if statusCode == http.StatusUnsupportedMediaType {
-		return true
-	}
-	// 422 Unprocessable Entity
-	if statusCode == http.StatusUnprocessableEntity {
-		return true
-	}
-	// 404 Not Found (e.g. model not found, invalid API path)
-	if statusCode == http.StatusNotFound {
-		return true
-	}
-
-	// For 429 (Too Many Requests) or 503 (Service Unavailable), if it's token/context limit related:
-	if statusCode == http.StatusTooManyRequests || statusCode == http.StatusServiceUnavailable {
-		lowerBody := strings.ToLower(body)
-		indicators := []string{
-			"context_length",
-			"context length",
-			"token limit",
-			"token_limit",
-			"too many tokens",
-			"maximum context",
-			"maximum token",
-			"exceeds the limit",
-			"exceeds context",
-			"exceeds the maximum",
-			"payload too large",
-			"request too large",
-			"request size",
-			"size limit",
-			"string too long",
-			"prompt is too long",
-			"prompt length",
-		}
-		for _, ind := range indicators {
-			if strings.Contains(lowerBody, ind) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// estimatePromptTokens estimates the token count of a request JSON body.
 func estimatePromptTokens(bodyBytes []byte, apiType string) int64 {
 	if len(bodyBytes) == 0 {
 		return 0
@@ -1418,13 +1334,14 @@ func findMatchingModel(selectedModelsJSON string, requestedModel string) string 
 }
 
 func translateModelName(requestedModel string, targetModel string, isNativeGemini bool, r *http.Request, bodyBytes *[]byte) {
-	if requestedModel == "" || targetModel == "" || strings.EqualFold(requestedModel, targetModel) {
+	if requestedModel == "" || targetModel == "" || requestedModel == targetModel {
 		return
 	}
 	// For Gemini models, if they normalize to the same clean model name,
 	// do not translate to prevent thought_signature validation errors due to model name mismatches.
+	// However, if they only differ in casing, we MUST translate to the target model's case to prevent case-sensitive errors.
 	isGemini := isNativeGemini || strings.Contains(strings.ToLower(requestedModel), "gemini") || strings.Contains(strings.ToLower(targetModel), "gemini")
-	if isGemini && strings.EqualFold(cleanModelName(requestedModel), cleanModelName(targetModel)) {
+	if isGemini && strings.EqualFold(cleanModelName(requestedModel), cleanModelName(targetModel)) && !strings.EqualFold(requestedModel, targetModel) {
 		return
 	}
 	if isNativeGemini {
@@ -1647,4 +1564,59 @@ func tryParseStreamUsage(line []byte, apiType string) (int64, int64, bool) {
 		}
 	}
 	return 0, 0, false
+}
+
+func flattenTextContentParts(bodyBytes []byte) []byte {
+	var payload map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &payload); err != nil {
+		return bodyBytes
+	}
+	messages, ok := payload["messages"].([]interface{})
+	if !ok {
+		return bodyBytes
+	}
+	modified := false
+	for i, msgVal := range messages {
+		msgMap, ok := msgVal.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		content, ok := msgMap["content"]
+		if !ok {
+			continue
+		}
+		if contentSlice, ok := content.([]interface{}); ok {
+			hasNonText := false
+			var textParts []string
+			for _, partVal := range contentSlice {
+				if partMap, ok := partVal.(map[string]interface{}); ok {
+					partType, _ := partMap["type"].(string)
+					if partType != "" && partType != "text" {
+						hasNonText = true
+						break
+					}
+					if textVal, ok := partMap["text"].(string); ok {
+						textParts = append(textParts, textVal)
+					}
+				} else if partStr, ok := partVal.(string); ok {
+					textParts = append(textParts, partStr)
+				} else {
+					hasNonText = true
+					break
+				}
+			}
+			if !hasNonText {
+				msgMap["content"] = strings.Join(textParts, "\n")
+				messages[i] = msgMap
+				modified = true
+			}
+		}
+	}
+	if modified {
+		payload["messages"] = messages
+		if newBytes, err := json.Marshal(payload); err == nil {
+			return newBytes
+		}
+	}
+	return bodyBytes
 }

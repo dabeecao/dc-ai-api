@@ -33,6 +33,8 @@ Một API Proxy hiệu năng cao, bền bỉ được phát triển bằng **Go*
 * **Hàng đợi Ghi Cơ sở Dữ liệu Đồng thời Cao**: Sử dụng hàng đợi ghi WAL an toàn luồng (thread-safe) và không chặn (non-blocking) để ghi chép thống kê và lượng token tiêu thụ mượt mà ở hiệu suất cao.
 * **Kiểm tra Hoạt động & Theo dõi Độ trễ**: Kiểm tra độ hợp lệ của các key khi khởi động hệ thống và ghi nhận độ trễ phản hồi thực tế, hiển thị trực quan trên trang quản trị.
 * **Bảng Quản trị Web Bảo mật**: Trang điều khiển glassmorphism tích hợp để quản lý client key, upstream key, các cấu hình dự phòng (fallback settings) và hiển thị trực quan số liệu thống kê sử dụng theo thời gian thực.
+* **Cổng thông tin & Đăng ký Người dùng (User Portal)**: Cung cấp cổng tự phục vụ (`/dashboard`) giúp người dùng có thể tự đăng ký, đăng nhập, tự quản lý Client API keys cá nhân và xem thống kê lượng token tiêu thụ của chính mình.
+* **Quản trị Thành viên dành cho Admin**: Bảng điều khiển admin tích hợp tab "Users" hỗ trợ duyệt tài khoản đăng ký mới, tạm khóa/mở khóa hoặc xóa người dùng, đồng thời xem chi tiết thống kê và keys của từng user qua modal.
 * **Giao diện Chat Client**: Giao diện web tương thích thiết bị di động (`/chat`) hỗ trợ tải lên tệp đa phương thức (multimodal uploads), đa ngôn ngữ (EN/VI), tự động cuộn thông minh, và hiển thị log suy nghĩ (thought log) có thể thu gọn.
 
 ---
@@ -45,6 +47,7 @@ dc-ai-api/
 ├── proxy.go           # Logic chuyển tiếp cốt lõi, streaming SSE và luân phiên key
 ├── store.go           # Kết nối cơ sở dữ liệu SQLite & Hàng đợi ghi đồng thời cao
 ├── admin.go           # Các API bảng quản trị và thao tác CRUD
+├── user.go            # Các API quản lý đăng ký, đăng nhập và key của người dùng
 ├── search.go          # API Tìm kiếm Web không cần key (tích hợp Tavily & Wikipedia)
 ├── logger.go          # Tiện ích ghi log tập trung tùy chỉnh
 ├── dev.md             # Tài liệu nâng cao dành cho nhà phát triển & API
@@ -61,6 +64,8 @@ dc-ai-api/
     ├── chat.html      # Khung sườn trang chat client
     ├── chat.js        # Logic tương tác phía client chat
     ├── chat.css       # Định dạng giao diện chat và hiệu ứng chuyển động
+    ├── dashboard.html # Khung sườn trang portal của người dùng
+    ├── dashboard.js   # Logic tương tác phía client portal người dùng
     ├── locales/       # Thư mục từ điển đa ngôn ngữ (en.json, vi.json)
     └── dist/          # Tài sản frontend được biên dịch (nhúng trực tiếp vào Go binary)
 ```
@@ -114,13 +119,20 @@ Khởi động chương trình đã biên dịch:
 make run
 ```
 
-Truy cập bảng quản trị tại địa chỉ `http://localhost:8080/admin` và giao diện chat tại `http://localhost:8080/chat`.
+Truy cập bảng quản trị tại địa chỉ `http://localhost:8080/admin`, cổng thông tin người dùng tại `http://localhost:8080/dashboard`, và giao diện chat tại `http://localhost:8080/chat`.
 
 ### 💬 Giao Diện Chat Client (`/chat`)
 
 Trang chat cung cấp giao diện trực quan để trò chuyện trực tiếp với pool model luân phiên của hệ thống:
 * **Chế độ khách (Guest Mode)**: Nếu được bật trong cài đặt admin (`Enable Guest API Key`), người dùng có thể chat ngay lập tức mà không cần nhập API key. Trong chế độ này, model mặc định bị khóa thành model ảo (`dc-ai-model`) và giới hạn tải lên tệp tối đa là 5MB.
 * **Chế độ yêu cầu Key**: Nếu chế độ khách bị tắt (hoặc chưa cấu hình key khách trên server), ô nhập tin nhắn sẽ bị khóa, giao diện tự động nhắc người dùng mở phần Cài đặt và cung cấp Client API Key hợp lệ (tiền tố `dc_`) được tạo ra từ trang admin để bắt đầu trò chuyện.
+
+### 👤 Cổng Thông Tin Người Dùng & Đăng Ký (`/dashboard`)
+
+Cổng tự phục vụ dành cho người dùng cuối để tự quản lý tài khoản và khóa API:
+* **Đăng ký tài khoản**: Người dùng có thể tự đăng ký tài khoản mới. Tài khoản đăng ký mới sẽ ở trạng thái `pending` cho đến khi được admin phê duyệt.
+* **Quản lý Client API Keys**: Sau khi đăng ký được duyệt và đăng nhập thành công, người dùng có thể tự tạo, sao chép, tắt/bật hoặc xóa API Key cá nhân (tiền tố `dc_`) để sử dụng trong các ứng dụng.
+* **Xem Báo cáo Tiêu thụ**: Người dùng có thể theo dõi tổng số key đang hoạt động, lượng token đã dùng và bảng chi tiết model nào tiêu tốn bao nhiêu token.
 
 ### 🐳 Chạy với Docker
 
@@ -201,6 +213,10 @@ server {
 4. **Cài đặt & Dự phòng**:
    * Cấu hình dự phòng toàn cục (URL dự phòng mặc định, key dự phòng, và model dự phòng) để đảm bảo độ tin cậy tối đa.
    * Giới hạn kích thước payload yêu cầu (`max_request_size_kb`) để tránh cạn kiệt bộ nhớ RAM.
+5. **Quản trị người dùng (Users)**:
+   * Vào tab **Users** để theo dõi danh sách thành viên cùng tổng số token họ đã tiêu thụ.
+   * Admin có thể duyệt các tài khoản đăng ký mới, tạm khóa hoặc mở khóa hoạt động, hoặc xóa hẳn user ra khỏi hệ thống.
+   * Click vào từng user để mở modal xem thống kê chi tiết theo model và các API key của người dùng đó.
 
 ---
 
